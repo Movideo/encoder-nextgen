@@ -1,14 +1,17 @@
-package com.movideo.nextgen.encoder.tasks;
+package com.movideo.nextgen.encoder.bitcodin.tasks;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.movideo.nextgen.encoder.bitcodin.BitcodinDRMConfigBuilder;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinProxy;
-import com.movideo.nextgen.encoder.bitcodin.models.BitcodinJob;
-import com.movideo.nextgen.encoder.bitcodin.models.InputConfig;
 import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.config.Constants;
+import com.movideo.nextgen.encoder.models.DRMInfo;
+import com.movideo.nextgen.encoder.models.EncodingJob;
+import com.movideo.nextgen.encoder.models.InputConfig;
+import com.movideo.nextgen.encoder.tasks.Task;
 
 import redis.clients.jedis.JedisPool;
 
@@ -33,8 +36,9 @@ public class CreateBitcodinJob extends Task {
 	@Override
 	public void run() {
 		
-		JSONObject jobJson, response;
-		BitcodinJob job;
+		JSONObject jobJson, response, drmConfig = null;
+		EncodingJob job;
+		
 		// int mediaId;
 		//TODO: Replace all Sysouts with proper log statements. Retain key information for debug purposes
 		System.out.println("In job creator");
@@ -64,9 +68,23 @@ public class CreateBitcodinJob extends Task {
 		//TODO: Track these statuses by Media Id. Dropbox processor creates the first entry
 		// which needs to be subsquently updated at each point.
 		job.setStatus(Constants.STATUS_RECEIVED);
+		
+		if(job.getDrmType() != null){
+			try {
+				drmConfig = BitcodinDRMConfigBuilder.getDRMConfigJSON(job);
+			} catch (BitcodinException e) {
+				//TODO: Define an error handler to avoid repetition
+				e.printStackTrace();
+				job.setStatus(Constants.STATUS_JOB_FAILED);
+				Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, job.toString());
+
+				return;
+			}
+		}
+		 
 
 		try {
-			response = BitcodinProxy.createJob(inputConfig, job);
+			response = BitcodinProxy.createJob(inputConfig, job, drmConfig);
 			System.out.println("Got back the response from Bitcodin");
 			job.setStatus(Constants.STATUS_JOB_SUBMITTED);
 		} catch (BitcodinException e) {
@@ -80,7 +98,7 @@ public class CreateBitcodinJob extends Task {
 		System.out.println("Response string is: " + response.toString());
 
 		try {
-			job.setBitcodinJobId(response.getInt("jobId"));
+			job.setEncodingJobId(response.getInt("jobId"));
 		} catch (JSONException e) {
 			e.printStackTrace();
 			// This shouldn't happen either. Implies we got a 200 from

@@ -1,4 +1,4 @@
-package com.movideo.nextgen.encoder.drm;
+package com.movideo.nextgen.encoder.drm.castlabs;
 
 import java.security.SecureRandom;
 import java.util.Objects;

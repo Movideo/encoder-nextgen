@@ -1,4 +1,4 @@
-package com.movideo.nextgen.encoder.bitcodin.models;
+package com.movideo.nextgen.encoder.models;
 
 	
 /**

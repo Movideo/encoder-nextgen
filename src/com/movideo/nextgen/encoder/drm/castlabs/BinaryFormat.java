@@ -1,4 +1,4 @@
-package com.movideo.nextgen.encoder.drm;
+package com.movideo.nextgen.encoder.drm.castlabs;
 
 public enum BinaryFormat
 {

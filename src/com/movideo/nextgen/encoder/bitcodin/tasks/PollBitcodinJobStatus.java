@@ -1,13 +1,14 @@
-package com.movideo.nextgen.encoder.tasks;
+package com.movideo.nextgen.encoder.bitcodin.tasks;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.movideo.nextgen.encoder.bitcodin.BitcodinException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinProxy;
-import com.movideo.nextgen.encoder.bitcodin.models.BitcodinJob;
 import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.config.Constants;
+import com.movideo.nextgen.encoder.models.EncodingJob;
+import com.movideo.nextgen.encoder.tasks.Task;
 
 import redis.clients.jedis.JedisPool;
 
@@ -33,7 +34,7 @@ public class PollBitcodinJobStatus extends Task {
 
 		String status;
 		JSONObject input, response;
-		BitcodinJob job;
+		EncodingJob job;
 
 		System.out.println("Inside poller");
 		System.out.println("Input string is: " + jobString);
@@ -51,10 +52,10 @@ public class PollBitcodinJobStatus extends Task {
 			return;
 		}
 
-		System.out.println("Now polling Job id: " + job.getBitcodinJobId());
+		System.out.println("Now polling Job id: " + job.getEncodingJobId());
 
 		try {
-			response = BitcodinProxy.getJobStatus(job.getBitcodinJobId());
+			response = BitcodinProxy.getJobStatus(job.getEncodingJobId());
 			status = response.getString("status");
 			System.out.println("STATUS IS: " + status);
 

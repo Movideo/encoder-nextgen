@@ -4,11 +4,11 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import com.movideo.nextgen.encoder.bitcodin.models.BitcodinJob;
+import com.movideo.nextgen.encoder.bitcodin.tasks.CreateBitcodinJob;
+import com.movideo.nextgen.encoder.bitcodin.tasks.PollBitcodinJobStatus;
 import com.movideo.nextgen.encoder.concurrency.ThreadPoolManager;
 import com.movideo.nextgen.encoder.config.Constants;
-import com.movideo.nextgen.encoder.tasks.CreateBitcodinJob;
-import com.movideo.nextgen.encoder.tasks.PollBitcodinJobStatus;
+import com.movideo.nextgen.encoder.models.EncodingJob;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -22,7 +22,7 @@ import redis.clients.jedis.JedisPoolConfig;
  */
 public class Test {
 	
-	private static BitcodinJob job;
+	private static EncodingJob job;
 	private static JedisPool redisPool;
 
 	public static void main(String[] args) throws InterruptedException {
@@ -36,7 +36,7 @@ public class Test {
 		redisPool = new JedisPool(new JedisPoolConfig(), Constants.REDIS_CONNECTION_STRING);
 		Jedis jedis = redisPool.getResource();		
 		String[] manifestTypes = {"mpd"};
-		job = new BitcodinJob();
+		job = new EncodingJob();
 	
 		//TODO: This needs to be constructed from Dropbox processor
 		job.setStatus(Constants.STATUS_NEW);
@@ -50,9 +50,14 @@ public class Test {
 		job.setSpeed("premium");
 		job.setInputFileName("ForYourIceOnly.mp4");
 		job.setInputFileUrl(getMediaUrlFromSegments(job.getClientId(), job.getMediaId(), job.getInputFileName()));
+		job.setDrmType(Constants.CENC_ENCRYPTION_TYPE);
+		job.setProductId("1234-5678-9012");
+		job.setVariant("HD");
 		
 		initMessageListener(corePoolSize, maxPoolSize, keepAliveTime, unit, CreateBitcodinJob.class.getName(), Constants.REDIS_INPUT_LIST);
 		initMessageListener(corePoolSize, maxPoolSize, keepAliveTime, unit, PollBitcodinJobStatus.class.getName(), Constants.REDIS_PENDING_LIST);
+		
+		System.out.println("About to push job to input list \n" + job.toString());
 	
 		//for(int i = 0; i < 50; i++){
 			jedis.lpush(Constants.REDIS_INPUT_LIST, job.toString());

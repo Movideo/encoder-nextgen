@@ -13,8 +13,8 @@ import redis.clients.jedis.JedisPool;
  */
 public class Task implements Runnable{
 	
-	JedisPool redisPool;
-	String jobString;
+	protected JedisPool redisPool;
+	protected String jobString;
 	
 	public Task(JedisPool pool, String jobString) {
 		this.redisPool = pool;

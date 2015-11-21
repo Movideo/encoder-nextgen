@@ -6,7 +6,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.movideo.nextgen.encoder.bitcodin.models.BitcodinJob;
+import com.movideo.nextgen.encoder.models.EncodingJob;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -25,11 +25,11 @@ public class Util {
 	 * @return
 	 * @throws JSONException
 	 */
-	public static BitcodinJob getBitcodinJobFromJSON(JSONObject json) throws JSONException {
+	public static EncodingJob getBitcodinJobFromJSON(JSONObject json) throws JSONException {
 		
-		BitcodinJob job = new BitcodinJob();
+		EncodingJob job = new EncodingJob();
 		if(json.has("bitcodinJobId")){
-			job.setBitcodinJobId(json.getInt("bitcodinJobId"));
+			job.setEncodingJobId(json.getInt("bitcodinJobId"));
 		}
 		job.setInputId(json.getInt("inputId"));
 		job.setOutputId(json.getInt("outputId"));
@@ -40,9 +40,15 @@ public class Util {
 		job.setInputFileUrl(json.getString("inputFileUrl"));
 		job.setEncodingProfileId(json.getInt("encodingProfileId"));
 		job.setSpeed(json.getString("speed"));
+		job.setProductId(json.getString("productId"));
+		job.setVariant(json.getString("variant"));
 		if(json.has("errorType")){
 			job.setErrorType(json.getString("errorType"));
 		}
+		if(json.has("drmType")){
+			job.setDrmType(json.getString("drmType"));
+		}
+
 		ArrayList<String> manifestTypes = new ArrayList<String>();
 		
 		JSONArray manifestArray = json.getJSONArray("manifestTypes");

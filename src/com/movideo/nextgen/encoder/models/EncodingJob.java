@@ -1,4 +1,4 @@
-package com.movideo.nextgen.encoder.bitcodin.models;
+package com.movideo.nextgen.encoder.models;
 
 import java.io.Serializable;
 
@@ -11,20 +11,22 @@ import org.json.JSONObject;
  * @author yramasundaram
  *
  */
-public class BitcodinJob implements Serializable {
+public class EncodingJob implements Serializable {
 
 	/**
 	 * Auto-generated id
 	 */
 	private static final long serialVersionUID = -2746341744995209121L;
 
-	private int bitcodinJobId;
+	private int encodingJobId;
 	private int retryCount;
 	private int encodingProfileId;
 	private int inputId;
 	private int outputId;
 	private int clientId;
 	private int mediaId;
+	private String productId;
+	private String variant;
 	private String status;
 	private String inputFileName;
 	private String inputFileUrl;
@@ -32,22 +34,9 @@ public class BitcodinJob implements Serializable {
 	private String[] manifestTypes;
 	private String errorType;
 	private String drmType;
-
-	public BitcodinJob(int encodingProfileId, int inputId, int outputId, int clientId, int mediaId,
-			String inputFilename, String inputFileUrl, String speed, String[] manifestTypes) {
-		
-		this.encodingProfileId = encodingProfileId;
-		this.inputId = inputId;
-		this.outputId = outputId;
-		this.clientId = clientId;
-		this.mediaId = mediaId;
-		this.inputFileName = inputFilename;
-		this.inputFileUrl = inputFileUrl;
-		this.speed = speed;
-		this.manifestTypes = manifestTypes;
-	}
 	
-	public BitcodinJob(){}
+	
+	public EncodingJob(){}
 
 	public int getEncodingProfileId() {
 		return encodingProfileId;
@@ -125,12 +114,12 @@ public class BitcodinJob implements Serializable {
 		this.inputFileUrl = url;
 	}
 
-	public int getBitcodinJobId() {
-		return bitcodinJobId;
+	public int getEncodingJobId() {
+		return encodingJobId;
 	}
 
-	public void setBitcodinJobId(int bitcodinJobId) {
-		this.bitcodinJobId = bitcodinJobId;
+	public void setEncodingJobId(int encodingJobId) {
+		this.encodingJobId = encodingJobId;
 	}
 
 	public int getRetryCount() {
@@ -163,6 +152,22 @@ public class BitcodinJob implements Serializable {
 
 	public void setDrmType(String drmType) {
 		this.drmType = drmType;
+	}
+
+	public String getProductId() {
+		return productId;
+	}
+
+	public void setProductId(String productId) {
+		this.productId = productId;
+	}
+
+	public String getVariant() {
+		return variant;
+	}
+
+	public void setVariant(String variant) {
+		this.variant = variant;
 	}
 
 	@Override

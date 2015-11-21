@@ -51,7 +51,7 @@ public class Test {
 		job.setInputFileName("ForYourIceOnly.mp4");
 		job.setInputFileUrl(getMediaUrlFromSegments(job.getClientId(), job.getMediaId(), job.getInputFileName()));
 		job.setDrmType(Constants.CENC_ENCRYPTION_TYPE);
-		job.setProductId("1234-5678-9012");
+		job.setProductId("1234-5678-9016");
 		job.setVariant("HD");
 		
 		initMessageListener(corePoolSize, maxPoolSize, keepAliveTime, unit, CreateBitcodinJob.class.getName(), Constants.REDIS_INPUT_LIST);

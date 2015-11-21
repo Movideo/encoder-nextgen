@@ -28,8 +28,8 @@ public class Util {
 	public static EncodingJob getBitcodinJobFromJSON(JSONObject json) throws JSONException {
 		
 		EncodingJob job = new EncodingJob();
-		if(json.has("bitcodinJobId")){
-			job.setEncodingJobId(json.getInt("bitcodinJobId"));
+		if(json.has("encodingJobId")){
+			job.setEncodingJobId(json.getInt("encodingJobId"));
 		}
 		job.setInputId(json.getInt("inputId"));
 		job.setOutputId(json.getInt("outputId"));

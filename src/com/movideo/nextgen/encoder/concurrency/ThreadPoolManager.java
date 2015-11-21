@@ -2,6 +2,7 @@ package com.movideo.nextgen.encoder.concurrency;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 import java.util.concurrent.ThreadPoolExecutor;
 
 import com.movideo.nextgen.encoder.tasks.Task;
@@ -61,7 +62,29 @@ public class ThreadPoolManager extends Thread {
 	public void run(){
 		Jedis jedis = redisPool.getResource();
 		Runnable task;
+		
+		// Not required in a clustered environment
+		
+//		/* Push any left over jobs to the threadpool queue for processing */
+//		long stuckJobsListLength = jedis.llen(workerInputList);
+//		if(stuckJobsListLength > 0){
+//			List<String> stuckJobsList = jedis.lrange(workerInputList, 0, -1);
+//
+//			for (int counter = 0; counter < stuckJobsListLength; counter++){
+//				task = getTaskInstance(stuckJobsList.get(counter));
+//				if(task == null){
+//					System.out.println("FATAL: Cannot instantiate worker");
+//					return;
+//				}
+//				
+//				executor.submit(task);
+//			}
+//			
+//		}
+		
 		while(true){
+			
+			/* New jobs */
 			while(jedis.llen(listToWatch) > 0){
 				
 				// Assumes that the task class already knows that the job source is workerInputList
@@ -74,6 +97,7 @@ public class ThreadPoolManager extends Thread {
 
 				task = getTaskInstance(jobString);
 				if(task == null){
+					System.out.println("FATAL: Cannot instantiate worker");
 					return;
 				}
 				

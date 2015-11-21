@@ -23,7 +23,7 @@ public class BitcodinHttpHelper extends HttpHelper{
 		Map<String, String> headers = new HashMap<String, String>();
 		headers.put("Content-Type", "application/json");
 		headers.put("bitcodin-api-version", "application/json");
-		headers.put("Content-Type", "application/json");
+		headers.put("bitcodin-api-key", "78e7e7a41713c7c5d3b0aaa2279ec9c07a84d60e84df1bcb5a97ddd6e6ecb711");
 		
 		return headers;
 	}

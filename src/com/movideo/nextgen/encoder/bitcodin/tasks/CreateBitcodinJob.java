@@ -4,8 +4,7 @@ import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import redis.clients.jedis.JedisPool;
-
+import com.google.gson.JsonSyntaxException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinDRMConfigBuilder;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinProxy;
@@ -14,6 +13,8 @@ import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 import com.movideo.nextgen.encoder.models.InputConfig;
 import com.movideo.nextgen.encoder.tasks.Task;
+
+import redis.clients.jedis.JedisPool;
 
 /**
  * Runnable class that submits a new job to Bitcodin and queues it into the 
@@ -40,31 +41,18 @@ public class CreateBitcodinJob extends Task {
 		
 		log.debug("Executing job creator");
 
-		JSONObject jobJson, response, drmConfig = null;
+		JSONObject response, drmConfig = null;
 		EncodingJob job;
-		String outputid;
 		
 		// int mediaId;
+		//TODO: Replace all Sysouts with proper log statements. Retain key information for debug purposes
 
 		log.debug("Job string is: " + jobString);
 
 		try {
-			jobJson = new JSONObject(jobString);
-			log.debug("Processing Media: " + jobJson.get("mediaId"));
-		} catch (JSONException e) {
-			// Ideally, this should NEVER happen
-			log.warn("Could not convert job to JSON Object", e);
-			Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, jobString);
-			return;
-		}
-
-		log.debug("JobJSON string is: " + jobJson);
-
-		try {
-			job = Util.getBitcodinJobFromJSON(jobJson);
-		} catch (JSONException e) {
-			// This should never happen either, because the input string is controlled by us
-			log.warn("Could not extract bitcodin job from JSON Object", e);
+			job = Util.getBitcodinJobFromJSON(jobString);
+		} catch (JsonSyntaxException e) {
+			log.error("Could not extract bitcodin job from job string", e);
 			Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, jobString);
 			return;
 		}
@@ -92,22 +80,21 @@ public class CreateBitcodinJob extends Task {
 			log.debug("Got back the response from Bitcodin");
 			job.setStatus(Constants.STATUS_JOB_SUBMITTED);
 		} catch (BitcodinException e) {
-			e.printStackTrace();
+			log.error("Job creation faile", e);
 			job.setStatus(Constants.STATUS_JOB_FAILED);
 			Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, job.toString());
 
 			return;
 		}
 		
-		log.debug("Response string for create job is: " + response.toString());
+		log.debug("Response string is: " + response.toString());
 
 		try {
 			job.setEncodingJobId(response.getInt("jobId"));
 		} catch (JSONException e) {
-			e.printStackTrace();
 			// This shouldn't happen either. Implies we got a 200 from
 			// Bitcodin but no jobId
-
+			log.error("An error occured while fetching jobId from the response",e);
 			job.setStatus(Constants.STATUS_JOB_FAILED);
 			Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, job.toString());
 			return;

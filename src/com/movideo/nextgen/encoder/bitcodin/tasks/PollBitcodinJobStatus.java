@@ -4,6 +4,7 @@ import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.google.gson.JsonSyntaxException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinProxy;
 import com.movideo.nextgen.encoder.common.Util;
@@ -35,26 +36,19 @@ public class PollBitcodinJobStatus extends Task {
 
 	@Override
 	public void run() {
+		
 		log.debug("Executing poller");
 
 		String status;
-		JSONObject input, response;
+		JSONObject response;
 		EncodingJob job;
 
 		log.debug("Input string is: " + jobString);
-		
+
 		try {
-			input = new JSONObject(jobString);
-			log.debug("JSON Object version: \n" + input);
-		} catch (JSONException e) {
-			log.warn("Could not convert job to JSON Object", e);
-			Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, jobString);
-			return;
-		}
-		try {
-			job = Util.getBitcodinJobFromJSON(input);
-		} catch (JSONException e) {
-			log.warn("Could not extract bitcodin job from JSON Object", e);
+			job = Util.getBitcodinJobFromJSON(jobString);
+		} catch (JsonSyntaxException e) {
+			log.error("Could not extract bitcodin job from JSON Object", e);
 			Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, jobString);
 			return;
 		}

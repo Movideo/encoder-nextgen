@@ -5,174 +5,174 @@ import java.io.Serializable;
 import org.json.JSONObject;
 
 /**
- * Holds all the information related to a Bitcodin job.
- * This gets converted to a JSON string and back,
- * when storing and processing respectively
+ * Holds all the information related to a Bitcodin job. This gets converted to a
+ * JSON string and back, when storing and processing respectively
+ * 
  * @author yramasundaram
- *
+ * 
  */
 public class EncodingJob implements Serializable {
 
-	/**
-	 * Auto-generated id
-	 */
-	private static final long serialVersionUID = -2746341744995209121L;
+    /**
+     * Auto-generated id
+     */
+    private static final long serialVersionUID = -2746341744995209121L;
 
-	private int encodingJobId;
-	private int retryCount;
-	private int encodingProfileId;
-	private int inputId;
-	private int outputId;
-	private int clientId;
-	private int mediaId;
-	private String productId;
-	private String variant;
-	private String status;
-	private String inputFileName;
-	private String inputFileUrl;
-	private String speed;
-	private String[] manifestTypes;
-	private String errorType;
-	private String drmType;
-	
-	
-	public EncodingJob(){}
+    private int encodingJobId;
+    private int retryCount;
+    private int encodingProfileId;
+    private int inputId;
+    private int outputId;
+    private int clientId;
+    private int mediaId;
+    private String productId;
+    private String variant;
+    private String status;
+    private String inputFileName;
+    private String inputFileUrl;
+    private String speed;
+    private String[] manifestTypes;
+    private String errorType;
+    private String drmType;
 
-	public int getEncodingProfileId() {
-		return encodingProfileId;
-	}
+    public EncodingJob() {
+    }
 
-	public void setEncodingProfileId(int encodingProfileId) {
-		this.encodingProfileId = encodingProfileId;
-	}
+    public int getEncodingProfileId() {
+	return encodingProfileId;
+    }
 
-	public int getInputId() {
-		return inputId;
-	}
+    public void setEncodingProfileId(int encodingProfileId) {
+	this.encodingProfileId = encodingProfileId;
+    }
 
-	public void setInputId(int inputId) {
-		this.inputId = inputId;
-	}
+    public int getInputId() {
+	return inputId;
+    }
 
-	public int getOutputId() {
-		return outputId;
-	}
+    public void setInputId(int inputId) {
+	this.inputId = inputId;
+    }
 
-	public void setOutputId(int outputId) {
-		this.outputId = outputId;
-	}
+    public int getOutputId() {
+	return outputId;
+    }
 
-	public String[] getManifestTypes() {
-		return manifestTypes;
-	}
+    public void setOutputId(int outputId) {
+	this.outputId = outputId;
+    }
 
-	public void setManifestTypes(String[] manifestTypes) {
-		this.manifestTypes = manifestTypes;
-	}
+    public String[] getManifestTypes() {
+	return manifestTypes;
+    }
 
-	public String getSpeed() {
-		return speed;
-	}
+    public void setManifestTypes(String[] manifestTypes) {
+	this.manifestTypes = manifestTypes;
+    }
 
-	public void setSpeed(String speed) {
-		this.speed = speed;
-	}
+    public String getSpeed() {
+	return speed;
+    }
 
-	public static long getSerialversionuid() {
-		return serialVersionUID;
-	}
+    public void setSpeed(String speed) {
+	this.speed = speed;
+    }
 
-	public int getClientId() {
-		return clientId;
-	}
+    public static long getSerialversionuid() {
+	return serialVersionUID;
+    }
 
-	public void setClientId(int clientId) {
-		this.clientId = clientId;
-	}
+    public int getClientId() {
+	return clientId;
+    }
 
-	public int getMediaId() {
-		return mediaId;
-	}
+    public void setClientId(int clientId) {
+	this.clientId = clientId;
+    }
 
-	public void setMediaId(int mediaId) {
-		this.mediaId = mediaId;
-	}
+    public int getMediaId() {
+	return mediaId;
+    }
 
-	public String getInputFileName() {
-		return inputFileName;
-	}
+    public void setMediaId(int mediaId) {
+	this.mediaId = mediaId;
+    }
 
-	public void setInputFileName(String inputFileName) {
-		this.inputFileName = inputFileName;
-	}
+    public String getInputFileName() {
+	return inputFileName;
+    }
 
-	public String getInputFileUrl() {
-		return inputFileUrl;
-	}
+    public void setInputFileName(String inputFileName) {
+	this.inputFileName = inputFileName;
+    }
 
-	public void setInputFileUrl(String url) {
-		this.inputFileUrl = url;
-	}
+    public String getInputFileUrl() {
+	return inputFileUrl;
+    }
 
-	public int getEncodingJobId() {
-		return encodingJobId;
-	}
+    public void setInputFileUrl(String url) {
+	this.inputFileUrl = url;
+    }
 
-	public void setEncodingJobId(int encodingJobId) {
-		this.encodingJobId = encodingJobId;
-	}
+    public int getEncodingJobId() {
+	return encodingJobId;
+    }
 
-	public int getRetryCount() {
-		return retryCount;
-	}
+    public void setEncodingJobId(int encodingJobId) {
+	this.encodingJobId = encodingJobId;
+    }
 
-	public void setRetryCount(int retryCount) {
-		this.retryCount = retryCount;
-	}
+    public int getRetryCount() {
+	return retryCount;
+    }
 
-	public String getStatus() {
-		return status;
-	}
+    public void setRetryCount(int retryCount) {
+	this.retryCount = retryCount;
+    }
 
-	public void setStatus(String status) {
-		this.status = status;
-	}
+    public String getStatus() {
+	return status;
+    }
 
-	public String getErrorType() {
-		return errorType;
-	}
+    public void setStatus(String status) {
+	this.status = status;
+    }
 
-	public void setErrorType(String errorType) {
-		this.errorType = errorType;
-	}
+    public String getErrorType() {
+	return errorType;
+    }
 
-	public String getDrmType() {
-		return drmType;
-	}
+    public void setErrorType(String errorType) {
+	this.errorType = errorType;
+    }
 
-	public void setDrmType(String drmType) {
-		this.drmType = drmType;
-	}
+    public String getDrmType() {
+	return drmType;
+    }
 
-	public String getProductId() {
-		return productId;
-	}
+    public void setDrmType(String drmType) {
+	this.drmType = drmType;
+    }
 
-	public void setProductId(String productId) {
-		this.productId = productId;
-	}
+    public String getProductId() {
+	return productId;
+    }
 
-	public String getVariant() {
-		return variant;
-	}
+    public void setProductId(String productId) {
+	this.productId = productId;
+    }
 
-	public void setVariant(String variant) {
-		this.variant = variant;
-	}
+    public String getVariant() {
+	return variant;
+    }
 
-	@Override
-	public String toString() {
-		return (new JSONObject(this)).toString();
-	}
+    public void setVariant(String variant) {
+	this.variant = variant;
+    }
+
+    @Override
+    public String toString() {
+	return (new JSONObject(this)).toString();
+    }
 
 }

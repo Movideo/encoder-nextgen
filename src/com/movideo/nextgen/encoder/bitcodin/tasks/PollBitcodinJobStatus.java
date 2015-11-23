@@ -3,6 +3,7 @@ package com.movideo.nextgen.encoder.bitcodin.tasks;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.google.gson.JsonSyntaxException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinProxy;
 import com.movideo.nextgen.encoder.common.Util;
@@ -33,21 +34,15 @@ public class PollBitcodinJobStatus extends Task {
 	public void run() {
 
 		String status;
-		JSONObject input, response;
+		JSONObject response;
 		EncodingJob job;
 
 		System.out.println("Inside poller");
 		System.out.println("Input string is: " + jobString);
+
 		try {
-			input = new JSONObject(jobString);
-			System.out.println("JSON Object version: \n" + input);
-		} catch (JSONException e) {
-			Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, jobString);
-			return;
-		}
-		try {
-			job = Util.getBitcodinJobFromJSON(input);
-		} catch (JSONException e) {
+			job = Util.getBitcodinJobFromJSON(jobString);
+		} catch (JsonSyntaxException e) {
 			Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, jobString);
 			return;
 		}

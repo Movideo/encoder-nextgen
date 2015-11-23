@@ -65,12 +65,7 @@ public class CastlabsProxy {
 	}
 
 	public static DRMInfo ingestKeys(String[] keys, EncodingJob job) throws CastlabsException {
-		/*
-		 * { "assets": [ { "type": "CENC", "assetId": "asset12345", "variantId"
-		 * : "variant12345", "ingestKeys": [ { "keyId":
-		 * "h3r2uBLxCHZo8qwd1Slmrg==", "streamType": "VIDEO_AUDIO", "algorithm":
-		 * "AES", "key": "YgGUf51q9Vfn2heGaTS9nw==" } ] } ] }
-		 */
+
 		DRMInfo drmInfo = new DRMInfo();
 		JSONObject payload = new JSONObject();
 
@@ -160,14 +155,5 @@ public class CastlabsProxy {
 		return headers;
 
 	}
-	
-//	public static void main(String[] args) throws CastlabsException {
-//		//String[] keys = DRMHelper.generateKeyKidPair();
-//		EncodingJob job = new EncodingJob();
-//		job.setProductId("Abracadabra12345");
-//		job.setDrmType(Constants.CENC_ENCRYPTION_TYPE);
-//		job.setVariant("HD");
-//		//System.out.println(ingestKeys(keys, job));
-//	}
 
 }

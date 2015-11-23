@@ -3,12 +3,12 @@ package com.movideo.nextgen.encoder.bitcodin.tasks;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.google.gson.JsonSyntaxException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinDRMConfigBuilder;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinProxy;
 import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.config.Constants;
-import com.movideo.nextgen.encoder.models.DRMInfo;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 import com.movideo.nextgen.encoder.models.InputConfig;
 import com.movideo.nextgen.encoder.tasks.Task;
@@ -36,7 +36,7 @@ public class CreateBitcodinJob extends Task {
 	@Override
 	public void run() {
 		
-		JSONObject jobJson, response, drmConfig = null;
+		JSONObject response, drmConfig = null;
 		EncodingJob job;
 		
 		// int mediaId;
@@ -46,20 +46,9 @@ public class CreateBitcodinJob extends Task {
 		System.out.println("Job string is: " + jobString);
 
 		try {
-			jobJson = new JSONObject(jobString);
-			System.out.println("Processing Media: " + jobJson.get("mediaId"));
-		} catch (JSONException e) {
-			// Ideally, this should NEVER happen
-			Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, jobString);
-			return;
-		}
-
-		System.out.println("JobJSON string is: " + jobJson);
-
-		try {
-			job = Util.getBitcodinJobFromJSON(jobJson);
-		} catch (JSONException e) {
-			// This should never happen either, because the input string is controlled by us
+			job = Util.getBitcodinJobFromJSON(jobString);
+		} catch (JsonSyntaxException e) {
+			// This should never happen, because the input string is controlled by us
 			e.printStackTrace();
 			Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, jobString);
 			return;

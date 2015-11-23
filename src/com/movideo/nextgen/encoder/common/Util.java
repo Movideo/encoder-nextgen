@@ -1,11 +1,8 @@
 package com.movideo.nextgen.encoder.common;
 
-import java.util.ArrayList;
-
-import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 
+import com.google.gson.Gson;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 
 import redis.clients.jedis.Jedis;
@@ -25,9 +22,10 @@ public class Util {
 	 * @return
 	 * @throws JSONException
 	 */
-	public static EncodingJob getBitcodinJobFromJSON(JSONObject json) throws JSONException {
+	public static EncodingJob getBitcodinJobFromJSON(String jsonString) {
 		
-		EncodingJob job = new EncodingJob();
+		Gson gson = new Gson();
+		/*EncodingJob job = new EncodingJob();
 		if(json.has("encodingJobId")){
 			job.setEncodingJobId(json.getInt("encodingJobId"));
 		}
@@ -48,6 +46,7 @@ public class Util {
 		if(json.has("drmType")){
 			job.setDrmType(json.getString("drmType"));
 		}
+		
 
 		ArrayList<String> manifestTypes = new ArrayList<String>();
 		
@@ -59,7 +58,9 @@ public class Util {
 		    manifestTypes.add(manifestArray.get(num).toString());
 		 } 
 		
-		job.setManifestTypes(manifestTypes.toArray(result));
+		job.setManifestTypes(manifestTypes.toArray(result));*/
+		
+		EncodingJob job = gson.fromJson(jsonString, EncodingJob.class);
 		
 		return job;
 	}
@@ -90,4 +91,9 @@ public class Util {
 		//TODO: Messages pushed into the error list are not processed at the moment. Need to implement error handling and
 		// selective re-tries based on error types.
 	}
+	
+//	public static void main(String[] args) throws JSONException {
+//		String json = "{\"mediaId\":837935,\"encodingProfileId\":35364,\"inputFileName\":\"ForYourIceOnly.mp4\",\"status\":\"NEW\",\"speed\":\"premium\",\"bitcodinJobId\":0,\"serialversionuid\":-2746341744995209121,\"outputId\":19496,\"clientId\":524,\"inputId\":0,\"inputFileUrl\":\"http://movideoqaoriginal1.blob.core.windows.net/original-524/media/837935/ForYourIceOnly.mp4\",\"manifestTypes\":[\"mpd\"],\"retryCount\":0}";
+//		getBitcodinJobFromJSON(json);
+//	}
 }

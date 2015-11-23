@@ -10,24 +10,26 @@ import com.movideo.nextgen.encoder.common.HttpHelper;
 
 public class CastlabsHttpHelper extends HttpHelper {
 
-	public static JSONObject makeHttpCall(String url, String payload, String method, Map<String, String> headers) throws CastlabsException {
+    public static JSONObject makeHttpCall(String url, String payload, String method, Map<String, String> headers)
+	    throws CastlabsException {
 
-		try {
-			return httpService(url, method, headers, payload);
-		} catch (EncoderException e) {
-			// TODO Auto-generated catch block
-			throw new CastlabsException(e.getStatus(), e.getMessage(), e.getOriginalException());
-		}
+	try {
+	    return httpService(url, method, headers, payload);
+	} catch (EncoderException e) {
+	    // TODO Auto-generated catch block
+	    throw new CastlabsException(e.getStatus(), e.getMessage(), e.getOriginalException());
+	}
 
+    }
+
+    public static HttpResponse getRawHttpResponse(String url, String payload, String method,
+	    Map<String, String> headers) throws CastlabsException {
+	try {
+	    return rawHttpService(url, method, headers, payload);
+	} catch (EncoderException e) {
+	    // TODO Auto-generated catch block
+	    throw new CastlabsException(e.getStatus(), e.getMessage(), e.getOriginalException());
 	}
-	
-	public static HttpResponse getRawHttpResponse(String url, String payload, String method, Map<String, String> headers) throws CastlabsException {
-		try{
-			return rawHttpService(url, method, headers, payload);
-		} catch (EncoderException e) {
-			// TODO Auto-generated catch block
-			throw new CastlabsException(e.getStatus(), e.getMessage(), e.getOriginalException());
-		}
-	}
+    }
 
 }

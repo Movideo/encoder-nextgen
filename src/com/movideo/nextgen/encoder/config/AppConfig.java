@@ -104,7 +104,6 @@ public class AppConfig {
 	    sampleJobMediaId = Integer.parseInt(prop.getProperty("sample.test.job.mediaId"));
 	    sampleJobencProfileId = Integer.parseInt(prop.getProperty("sample.test.job.encProfileId"));
 	    sampleJobSpeed = prop.getProperty("sample.test.job.speed");
-	    ;
 	    sampleJobInputFile = prop.getProperty("sample.test.job.inputFileName");
 	    sampleJobStatus = prop.getProperty("sample.test.job.status");
 	    sampleJobDefOutputId = Integer.parseInt(prop.getProperty("sample.test.job.default.output.id"));

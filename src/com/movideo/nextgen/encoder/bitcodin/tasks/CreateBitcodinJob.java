@@ -44,7 +44,7 @@ public class CreateBitcodinJob extends Task {
 	log.trace("CreateBitcodinJob : run() -> Executing job creator");
 
 	JSONObject response, drmConfig = null;
-	EncodingJob job;
+	EncodingJob job = null;
 
 	// int mediaId;
 	// TODO: Replace all Sysouts with proper log statements. Retain key
@@ -56,6 +56,7 @@ public class CreateBitcodinJob extends Task {
 	    job = Util.getBitcodinJobFromJSON(jobString);
 	} catch (JsonSyntaxException e) {
 	    log.error("Could not extract bitcodin job from job string", e);
+	    job.setRetry(false);
 	    Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, jobString);
 	    return;
 	}
@@ -83,6 +84,9 @@ public class CreateBitcodinJob extends Task {
 	    log.debug("CreateBitcodinJob : run() -> Got back the response from Bitcodin");
 	    job.setStatus(Constants.STATUS_JOB_SUBMITTED);
 	} catch (BitcodinException e) {
+	    if (e.getStatus() == 500 || e.getStatus() == 503) {
+		job.setRetry(true);
+	    }
 	    log.error("Job creation failed", e);
 	    job.setStatus(Constants.STATUS_JOB_FAILED);
 	    Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, job.toString());

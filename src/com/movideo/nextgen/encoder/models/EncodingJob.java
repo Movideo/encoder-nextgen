@@ -34,6 +34,7 @@ public class EncodingJob implements Serializable {
     private String[] manifestTypes;
     private String errorType;
     private String drmType;
+    private boolean isRetry;
 
     public EncodingJob() {
     }
@@ -173,6 +174,14 @@ public class EncodingJob implements Serializable {
     @Override
     public String toString() {
 	return (new JSONObject(this)).toString();
+    }
+
+    public boolean isRetry() {
+	return isRetry;
+    }
+
+    public void setRetry(boolean isRetry) {
+	this.isRetry = isRetry;
     }
 
 }

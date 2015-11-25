@@ -58,7 +58,8 @@ public class PollBitcodinJobStatus extends Task {
 	try {
 	    response = BitcodinProxy.getJobStatus(job.getEncodingJobId());
 	    status = response.getString("status");
-	    log.debug("PollBitcodinJobStatus : run() -> Response Status is: " + status);
+	    log.debug("PollBitcodinJobStatus : run() -> Response Status for Job Id " + job.getEncodingJobId() + ":"
+		    + status);
 
 	} catch (BitcodinException | JSONException e) {
 	    log.error("Encoding failed for the job id " + job.getEncodingJobId(), e);
@@ -73,10 +74,11 @@ public class PollBitcodinJobStatus extends Task {
 	    Util.moveJobToNextList(redisPool, workingListName, pendingListName, jobString, job.toString());
 
 	} else if (status != null && status.equalsIgnoreCase("Finished")) {
+	    log.info("Job with ID " + job.getEncodingJobId() + " finished successfully!");
 	    Util.moveJobToNextList(redisPool, workingListName, successListName, jobString, job.toString());
 
 	} else {
-	    log.error("Job failed");
+	    log.error("Job with ID " + job.getEncodingJobId() + " failed");
 	    job.setStatus(Constants.STATUS_JOB_FAILED);
 	    Util.moveJobToNextList(redisPool, workingListName, errorListName, jobString, job.toString());
 	    return;

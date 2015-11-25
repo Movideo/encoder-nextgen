@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinProxy;
 import com.movideo.nextgen.encoder.bitcodin.tasks.CreateBitcodinJob;
 import com.movideo.nextgen.encoder.bitcodin.tasks.PollBitcodinJobStatus;
+import com.movideo.nextgen.encoder.concurrency.RetryThreadPoolManager;
 import com.movideo.nextgen.encoder.concurrency.ThreadPoolManager;
 import com.movideo.nextgen.encoder.config.AppConfig;
 import com.movideo.nextgen.encoder.config.Constants;
@@ -41,6 +42,8 @@ public class Test {
 		TimeUnit.MINUTES, CreateBitcodinJob.class.getName(), Constants.REDIS_INPUT_LIST);
 	initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(),
 		TimeUnit.MINUTES, PollBitcodinJobStatus.class.getName(), Constants.REDIS_PENDING_LIST);
+	initRetryMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(),
+		TimeUnit.MINUTES, CreateBitcodinJob.class.getName(), Constants.REDIS_JOB_ERROR_LIST);
 
 	for (int i = 0; i < appConfig.getParalleljobCountforTest(); i++) {
 	    jedis.lpush(Constants.REDIS_INPUT_LIST, job.toString());
@@ -63,6 +66,15 @@ public class Test {
 	manager.start();
     }
 
+    private static void initRetryMessageListener(int corePoolSize, int maxPoolSize, long keepAliveTime, TimeUnit unit,
+	    String workerClassName, String listToWatch) {
+
+	ThreadPoolExecutor executor = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, unit,
+		new LinkedBlockingDeque<Runnable>());
+	RetryThreadPoolManager manager = new RetryThreadPoolManager(redisPool, listToWatch, executor, workerClassName);
+	manager.start();
+    }
+
     public static EncodingJob createSampleJobFromConfig(AppConfig appConfig) {
 
 	String[] manifestTypes = { "mpd" };
@@ -79,7 +91,7 @@ public class Test {
 	job.setSpeed(appConfig.getSampleJobSpeed());
 	job.setInputFileName(appConfig.getSampleJobInputFile());
 	job.setDrmType(Constants.CENC_ENCRYPTION_TYPE);
-	job.setProductId("1235-5678-9055");
+	job.setProductId("1235-5678-1029");
 	job.setVariant("HD");
 	job.setInputFileUrl(getMediaUrlFromSegments(job.getClientId(), job.getMediaId(), job.getInputFileName()));
 

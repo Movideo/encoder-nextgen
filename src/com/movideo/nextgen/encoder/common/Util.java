@@ -1,6 +1,7 @@
 package com.movideo.nextgen.encoder.common;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.amazonaws.util.json.JSONException;
 import com.google.gson.Gson;
@@ -17,7 +18,7 @@ import redis.clients.jedis.JedisPool;
  */
 public class Util {
 
-    private static final Logger log = Logger.getLogger(Util.class);
+    private static final Logger log = LogManager.getLogger();
 
     /**
      * Constructs a Bitcodin Job object from input JSON string Primarily avoids

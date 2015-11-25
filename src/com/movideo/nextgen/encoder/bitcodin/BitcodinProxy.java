@@ -1,6 +1,7 @@
 package com.movideo.nextgen.encoder.bitcodin;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,7 +24,7 @@ import com.movideo.nextgen.encoder.models.StreamConfig;
  */
 public class BitcodinProxy {
 
-    private static final Logger log = Logger.getLogger(BitcodinProxy.class);
+    private static final Logger log = LogManager.getLogger();
 
     public static JSONObject listJobs() throws BitcodinException {
 	return BitcodinHttpHelper.makeHttpCall("jobs?page=1", null, "get");
@@ -45,24 +46,28 @@ public class BitcodinProxy {
 	    payload.put("speed", job.getSpeed());
 	    // TODO: Add support for audioMetadata
 	    payload.put("outputId", job.getOutputId());
-	    log.debug("Payload is ready");
+	    log.debug("About to create input");
 
 	    JSONObject response = createAzureInput(inputConfig, job);
 
 	    if (response == null) {
 		throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, "Response is null", null);
 	    }
+	    
+	    log.debug("Created input id: " + response.get("inputId"));
 
 	    payload.put("inputId", Integer.parseInt(response.get("inputId").toString()));
 	    String drmType = job.getDrmType();
-	    switch (drmType) {
-	    case Constants.CENC_ENCRYPTION_TYPE:
-		payload.put("drmConfig", drmConfig);
-		break;
-	    case Constants.AES_ENCRYPTION_TYPE:
-	    case Constants.FPS_ENCRYPTION_TYPE:
-		payload.put("hlsEncryptionConfig", drmConfig);
-		break;
+	    if (drmType != null) {
+		switch (drmType) {
+		case Constants.CENC_ENCRYPTION_TYPE:
+		    payload.put("drmConfig", drmConfig);
+		    break;
+		case Constants.AES_ENCRYPTION_TYPE:
+		case Constants.FPS_ENCRYPTION_TYPE:
+		    payload.put("hlsEncryptionConfig", drmConfig);
+		    break;
+		}
 	    }
 	    log.info("BitcodinProxy: createJob() -> Payload sent to Bitcodin create Job API :" + payload.toString());
 	    response = BitcodinHttpHelper.makeHttpCall("job/create", payload.toString(), "post");

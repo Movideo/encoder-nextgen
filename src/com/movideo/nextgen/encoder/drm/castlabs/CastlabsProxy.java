@@ -8,19 +8,19 @@ import java.util.Map;
 import org.apache.http.HttpResponse;
 import org.apache.http.ParseException;
 import org.apache.http.util.EntityUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.movideo.nextgen.encoder.concurrency.ThreadPoolManager;
 import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.models.DRMInfo;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 
 public class CastlabsProxy {
 
-    private static final Logger log = Logger.getLogger(ThreadPoolManager.class);
+    private static final Logger log = LogManager.getLogger();
 
     public static String getCasToken(String targetService) throws CastlabsException {
 

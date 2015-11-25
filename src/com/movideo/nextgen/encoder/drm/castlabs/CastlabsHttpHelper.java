@@ -5,8 +5,8 @@ import java.util.Map;
 import org.apache.http.HttpResponse;
 import org.json.JSONObject;
 
+import com.movideo.nextgen.common.http.HttpHelper;
 import com.movideo.nextgen.encoder.common.EncoderException;
-import com.movideo.nextgen.encoder.common.HttpHelper;
 
 public class CastlabsHttpHelper extends HttpHelper {
 

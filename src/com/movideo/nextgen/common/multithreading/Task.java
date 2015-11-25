@@ -1,6 +1,6 @@
-package com.movideo.nextgen.encoder.tasks;
+package com.movideo.nextgen.common.multithreading;
 
-import redis.clients.jedis.JedisPool;
+import com.movideo.nextgen.common.queue.QueueManager;
 
 /**
  * Super class for all Tasks. Can implement Callable instead of Runnable, but we
@@ -12,11 +12,11 @@ import redis.clients.jedis.JedisPool;
  */
 public class Task implements Runnable {
 
-    protected JedisPool redisPool;
+    protected QueueManager queueManager;
     protected String jobString;
 
-    public Task(JedisPool pool, String jobString) {
-	this.redisPool = pool;
+    public Task(QueueManager manager, String jobString) {
+	this.queueManager= manager;
 	this.jobString = jobString;
     }
 

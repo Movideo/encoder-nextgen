@@ -1,4 +1,4 @@
-package com.movideo.nextgen.encoder.common;
+package com.movideo.nextgen.common.http;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -15,15 +15,17 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.movideo.nextgen.encoder.common.EncoderException;
 import com.movideo.nextgen.encoder.config.Constants;
 
 public class HttpHelper {
 
-    private static final Logger log = Logger.getLogger(HttpHelper.class);
+    private static final Logger log = LogManager.getLogger();
 
     private static final HttpClient httpClient = HttpClientBuilder.create().build();
 

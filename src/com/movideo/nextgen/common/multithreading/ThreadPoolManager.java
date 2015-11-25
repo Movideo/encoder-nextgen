@@ -1,15 +1,14 @@
-package com.movideo.nextgen.encoder.concurrency;
+package com.movideo.nextgen.common.multithreading;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.ThreadPoolExecutor;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import com.movideo.nextgen.encoder.tasks.Task;
-
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
+import com.movideo.nextgen.common.queue.QueueException;
+import com.movideo.nextgen.common.queue.QueueManager;
 
 /**
  * Creates the manager thread that listens to a specific list and pushes
@@ -21,17 +20,17 @@ import redis.clients.jedis.JedisPool;
  */
 public class ThreadPoolManager extends Thread {
 
-    private static final Logger log = Logger.getLogger(ThreadPoolManager.class);
+    private static final Logger log = LogManager.getLogger();
+    private QueueManager queueManager;
 
-    JedisPool redisPool;
     String listToWatch, workerInputList, taskClassName;
     ThreadPoolExecutor executor;
 
     /**
      * Construct the manager thread
      * 
-     * @param redisPool
-     *            - Redis connection pool
+     * @param manager
+     *            - QueueManager that abstracts communication with the queue
      * @param listToWatch
      *            - Input list
      * @param executor
@@ -39,9 +38,9 @@ public class ThreadPoolManager extends Thread {
      * @param taskClassName
      *            - The task type that need to be created
      */
-    public ThreadPoolManager(JedisPool redisPool, String listToWatch, ThreadPoolExecutor executor,
+    public ThreadPoolManager(QueueManager manager, String listToWatch, ThreadPoolExecutor executor,
 	    String taskClassName) {
-	this.redisPool = redisPool;
+	this.queueManager = manager;
 	this.listToWatch = listToWatch;
 	this.workerInputList = listToWatch + "_WORKING";
 	this.executor = executor;
@@ -54,8 +53,8 @@ public class ThreadPoolManager extends Thread {
 
 	    @SuppressWarnings("unchecked")
 	    Class<Task> taskClass = (Class<Task>) Class.forName(taskClassName);
-	    Constructor<Task> constructor = taskClass.getConstructor(JedisPool.class, String.class);
-	    task = constructor.newInstance(redisPool, jobString);
+	    Constructor<Task> constructor = taskClass.getConstructor(QueueManager.class, String.class);
+	    task = constructor.newInstance(queueManager, jobString);
 	    return task;
 
 	} catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
@@ -68,7 +67,7 @@ public class ThreadPoolManager extends Thread {
     }
 
     public void run() {
-	Jedis jedis = redisPool.getResource();
+	
 	Runnable task;
 
 	// Not required in a clustered environment
@@ -81,7 +80,7 @@ public class ThreadPoolManager extends Thread {
 	// for (int counter = 0; counter < stuckJobsListLength; counter++){
 	// task = getTaskInstance(stuckJobsList.get(counter));
 	// if(task == null){
-	// System.out.println("FATAL: Cannot instantiate worker");
+	// log.fatal("FATAL: Cannot instantiate worker");
 	// return;
 	// }
 	//
@@ -93,11 +92,12 @@ public class ThreadPoolManager extends Thread {
 	while (true) {
 
 	    /* New jobs */
-	    while (jedis.llen(listToWatch) > 0) {
+	    try {
+		while (queueManager.getQueueLength(listToWatch) > 0) {
 
 		// Assumes that the task class already knows that the job source
 		// is workerInputList
-		String jobString = jedis.brpoplpush(listToWatch, workerInputList, 1);
+		String jobString = (String) queueManager.moveAndReturnTopElement(listToWatch, workerInputList);
 
 		/* Thread safety */
 		if (jobString == null) {
@@ -106,11 +106,16 @@ public class ThreadPoolManager extends Thread {
 
 		task = getTaskInstance(jobString);
 		if (task == null) {
-		    log.fatal("ThreadPoolManager : run() -> Cannot instantiate worker");
+		    log.fatal("Cannot instantiate worker");
 		    return;
 		}
 
 		executor.submit(task);
+		}
+	    } catch (QueueException e) {
+		// TODO Auto-generated catch block
+		log.fatal("Queue Exception: " + e.getMessage());
+		return;
 	    }
 	}
     }

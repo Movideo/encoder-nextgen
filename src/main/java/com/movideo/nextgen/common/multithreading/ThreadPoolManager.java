@@ -14,110 +14,113 @@ import com.movideo.nextgen.common.queue.QueueManager;
  * Creates the manager thread that listens to a specific list and pushes
  * messages into the next working queue for processing. This is the thread that
  * needs to be monitored to make sure jobs are being pushed fine
- * 
- * @author yramasundaram
  *
+ * @author yramasundaram
  */
-public class ThreadPoolManager extends Thread {
+public class ThreadPoolManager extends Thread
+{
 
-    private static final Logger log = LogManager.getLogger();
-    private QueueManager queueManager;
+	private static final Logger log = LogManager.getLogger();
+	private final TaskFactory taskFactory;
+	private QueueManager queueManager;
 
-    String listToWatch, workerInputList, taskClassName;
-    ThreadPoolExecutor executor;
+	String listToWatch, workerInputList, taskName;
+	ThreadPoolExecutor executor;
 
-    /**
-     * Construct the manager thread
-     * 
-     * @param manager
-     *            - QueueManager that abstracts communication with the queue
-     * @param listToWatch
-     *            - Input list
-     * @param executor
-     *            - ThreadPoolExecutor to be used for submitting the tasks
-     * @param taskClassName
-     *            - The task type that need to be created
-     */
-    public ThreadPoolManager(QueueManager manager, String listToWatch, ThreadPoolExecutor executor,
-	    String taskClassName) {
-	this.queueManager = manager;
-	this.listToWatch = listToWatch;
-	this.workerInputList = listToWatch + "_WORKING";
-	this.executor = executor;
-	this.taskClassName = taskClassName;
-    }
-
-    private Runnable getTaskInstance(String jobString) {
-	Runnable task;
-	try {
-
-	    @SuppressWarnings("unchecked")
-	    Class<Task> taskClass = (Class<Task>) Class.forName(taskClassName);
-	    Constructor<Task> constructor = taskClass.getConstructor(QueueManager.class, String.class);
-	    task = constructor.newInstance(queueManager, jobString);
-	    return task;
-
-	} catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
-		| NoSuchMethodException | SecurityException | ClassNotFoundException e) {
-
-	    log.error("Unable to create worker threads. Exception is: \n", e);
-	    System.exit(1);
+	/**
+	 * Construct the manager thread
+	 *
+	 * @param listToWatch   - Input list
+	 * @param executor      - ThreadPoolExecutor to be used for submitting the tasks
+	 */
+	public ThreadPoolManager(QueueManager queueManager, TaskFactory taskFactory, String listToWatch, ThreadPoolExecutor executor, String taskName)
+	{
+		this.taskFactory = taskFactory;
+		this.listToWatch = listToWatch;
+		this.workerInputList = listToWatch + "_WORKING";
+		this.executor = executor;
+		this.taskName = taskName;
+		this.queueManager = queueManager;
 	}
-	return null;
-    }
 
-    public void run() {
-	
-	Runnable task;
+	private Runnable getTaskInstance(String jobString)
+	{
 
-	// Not required in a clustered environment
+		try
+		{
 
-	// /* Push any left over jobs to the threadpool queue for processing */
-	// long stuckJobsListLength = jedis.llen(workerInputList);
-	// if(stuckJobsListLength > 0){
-	// List<String> stuckJobsList = jedis.lrange(workerInputList, 0, -1);
-	//
-	// for (int counter = 0; counter < stuckJobsListLength; counter++){
-	// task = getTaskInstance(stuckJobsList.get(counter));
-	// if(task == null){
-	// log.fatal("FATAL: Cannot instantiate worker");
-	// return;
-	// }
-	//
-	// executor.submit(task);
-	// }
-	//
-	// }
+			return taskFactory.createTaskInstance(taskName, jobString);
 
-	while (true) {
+		}
+		catch (InstantiationException e)
+		{
+
+			log.error("Unable to create worker threads. Exception is: \n", e);
+			System.exit(1);
+		}
+		return null;
+	}
+
+	public void run()
+	{
+
+		Runnable task;
+
+		// Not required in a clustered environment
+
+		// /* Push any left over jobs to the threadpool queue for processing */
+		// long stuckJobsListLength = jedis.llen(workerInputList);
+		// if(stuckJobsListLength > 0){
+		// List<String> stuckJobsList = jedis.lrange(workerInputList, 0, -1);
+		//
+		// for (int counter = 0; counter < stuckJobsListLength; counter++){
+		// task = getTaskInstance(stuckJobsList.get(counter));
+		// if(task == null){
+		// log.fatal("FATAL: Cannot instantiate worker");
+		// return;
+		// }
+		//
+		// executor.submit(task);
+		// }
+		//
+		// }
+
+		while (true)
+		{
 
 	    /* New jobs */
-	    try {
-		while (queueManager.getQueueLength(listToWatch) > 0) {
+			try
+			{
+				while (queueManager.getQueueLength(listToWatch) > 0)
+				{
 
-		// Assumes that the task class already knows that the job source
-		// is workerInputList
-		String jobString = (String) queueManager.moveAndReturnTopElement(listToWatch, workerInputList);
+					// Assumes that the task class already knows that the job source
+					// is workerInputList
+					String jobString = (String) queueManager.moveAndReturnTopElement(listToWatch, workerInputList);
 
 		/* Thread safety */
-		if (jobString == null) {
-		    continue;
-		}
+					if (jobString == null)
+					{
+						continue;
+					}
 
-		task = getTaskInstance(jobString);
-		if (task == null) {
-		    log.fatal("Cannot instantiate worker");
-		    return;
-		}
+					task = getTaskInstance(jobString);
+					if (task == null)
+					{
+						log.fatal("Cannot instantiate worker");
+						return;
+					}
 
-		executor.submit(task);
+					executor.submit(task);
+				}
+			}
+			catch (QueueException e)
+			{
+				// TODO Auto-generated catch block
+				log.fatal("Queue Exception: " + e.getMessage());
+				return;
+			}
 		}
-	    } catch (QueueException e) {
-		// TODO Auto-generated catch block
-		log.fatal("Queue Exception: " + e.getMessage());
-		return;
-	    }
 	}
-    }
 
 }

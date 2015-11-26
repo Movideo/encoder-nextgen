@@ -32,10 +32,10 @@ public class PollBitcodinJobStatusTask extends Task
 
 	private EncodeDAO encodeDAO;
 
-	public PollBitcodinJobStatusTask(QueueManager manager, String jobString)
+	public PollBitcodinJobStatusTask(QueueManager manager, EncodeDAO encodeDAO, String jobString)
 	{
 		super(manager, jobString);
-		encodeDAO = new EncodeDAO();
+		this.encodeDAO = encodeDAO;
 	}
 
 	@Override public void run()

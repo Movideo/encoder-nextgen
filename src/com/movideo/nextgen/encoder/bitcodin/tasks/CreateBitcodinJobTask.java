@@ -16,6 +16,9 @@ import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 import com.movideo.nextgen.encoder.models.InputConfig;
+import com.movideo.nextgen.encoder.models.OutputConfig;
+
+import net.minidev.json.JSONArray;
 
 /**
  * Runnable class that submits a new job to Bitcodin and queues it into the
@@ -24,19 +27,50 @@ import com.movideo.nextgen.encoder.models.InputConfig;
  * @author yramasundaram
  *
  */
-public class CreateBitcodinJob extends Task {
+public class CreateBitcodinJobTask extends Task {
 
     private static final Logger log = LogManager.getLogger();
 
     private String workingListName = Constants.REDIS_INPUT_WORKING_LIST, errorListName = Constants.REDIS_JOB_ERROR_LIST,
 	    successListName = Constants.REDIS_PENDING_LIST;
 
-    // TODO: Config
-    private InputConfig inputConfig = new InputConfig(Constants.AZURE_INPUT_TYPE, Constants.AZURE_INPUT_ACCOUNT_NAME,
-	    Constants.AZURE_INPUT_ACCOUNT_KEY, Constants.AZURE_INPUT_BLOB_CONTAINER_PREFIX + Constants.clientId);
-
-    public CreateBitcodinJob(QueueManager queueManager, String jobString) {
+    public CreateBitcodinJobTask(QueueManager queueManager, String jobString) {
 	super(queueManager, jobString);
+    }
+
+    private JSONObject constructManifestObject(JSONObject manifestUrls, String type, JSONObject createJobResponse)
+	    throws JSONException {
+
+	JSONObject manifest = new JSONObject();
+	manifest.put("type", type);
+	// TODO: Hacky logic - understand why Bitcodin cannot send our urls back
+	manifest.put("url", createJobResponse.getString("outputPath").replace(".bitblobstorage", "") + "/"
+		+ createJobResponse.getInt("jobId") + type);
+	return manifest;
+    }
+
+    private String getEncodeSummary(EncodingJob job, JSONObject createJobResponse) throws JSONException{
+	
+	JSONObject encodeSummary = new JSONObject();
+	
+	encodeSummary.put("object", "encoding");
+	encodeSummary.put("product_id", job.getProductId());
+	encodeSummary.put("media_id", job.getMediaId());
+	encodeSummary.put("variant", job.getVariant());
+	encodeSummary.put("mediaConfigurations", createJobResponse.getJSONObject("input").getJSONArray("mediaConfigurations"));
+	JSONArray manifests = new JSONArray();
+	JSONObject manifestUrls = createJobResponse.getJSONObject("manifestUrls");
+	
+	if(manifestUrls.has("mpdUrl")){
+	    manifests.add(constructManifestObject(manifestUrls, "mpd", createJobResponse));
+	}
+	
+	if(manifestUrls.has("m3u8Url")){
+	    manifests.add(constructManifestObject(manifestUrls, "m3u8", createJobResponse));
+	}
+	encodeSummary.put("manifests", manifests);
+	
+	return encodeSummary.toString();
     }
 
     @Override
@@ -65,6 +99,15 @@ public class CreateBitcodinJob extends Task {
 		return;
 	    }
 
+	    InputConfig inputConfig = new InputConfig(Constants.AZURE_INPUT_TYPE, Constants.AZURE_INPUT_ACCOUNT_NAME,
+		    Constants.AZURE_INPUT_ACCOUNT_KEY, Constants.AZURE_INPUT_BLOB_CONTAINER_PREFIX + job.getClientId());
+
+	    OutputConfig outputConfig = new OutputConfig(Constants.OUTPUT_STORAGE_TYPE,
+		    Constants.BITCODIN_OUTPUT_NAME_PREFIX + job.getClientId() + "-" + job.getMediaId(),
+		    Constants.AZURE_OUPUT_ACCOUNT_NAME, Constants.AZURE_OUPUT_ACCOUNT_KEY,
+		    Constants.AZURE_OUTPUT_BLOB_CONTAINER_PREFIX + job.getClientId(),
+		    Constants.AZURE_OUTPUT_BLOB_MEDIA_PATH_PREFIX + "/" + job.getMediaId() + "/");
+
 	    // TODO: Track these statuses by Media Id. Dropbox processor creates
 	    // the
 	    // first entry
@@ -88,7 +131,7 @@ public class CreateBitcodinJob extends Task {
 
 	    try {
 		log.debug("About to call createJob");
-		response = BitcodinProxy.createJob(inputConfig, job, drmConfig);
+		response = BitcodinProxy.createJob(inputConfig, outputConfig, job, drmConfig);
 		log.debug("CreateBitcodinJob : run() -> Got back the response from Bitcodin");
 		job.setStatus(Constants.STATUS_JOB_SUBMITTED);
 	    } catch (BitcodinException e) {
@@ -102,6 +145,8 @@ public class CreateBitcodinJob extends Task {
 	    }
 
 	    log.debug("Response string is: " + response.toString());
+	    
+	    //TODO: Error handling. Assumes Bitcodin will always return success response if response code is a non-error code
 
 	    try {
 		job.setEncodingJobId(response.getInt("jobId"));
@@ -115,12 +160,21 @@ public class CreateBitcodinJob extends Task {
 		// errorListName, jobString, job.toString());
 		return;
 	    }
+	    
+	    try {
+		job.setEncodeSummary(getEncodeSummary(job, response));
+	    } catch (JSONException e) {
+		log.error("An error occured while creating the job summary", e);
+		job.setStatus(Constants.STATUS_JOB_FAILED);
+		queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+		return;
+	    }
 
 	    // Util.moveJobToNextList(redisPool, workingListName,
 	    // successListName, jobString, job.toString());
 	    queueManager.moveQueues(workingListName, successListName, jobString, job.toString());
 	} catch (QueueException e) {
-	    log.error("CreateBitcodinJob :: Queue Exception when trying to process job " + e.getMessage());
+	    log.error("CreateBitcodinJob :: Queue Exception when trying to process job", e);
 	    return;
 	}
     }

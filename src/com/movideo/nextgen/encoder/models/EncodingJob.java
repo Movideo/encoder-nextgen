@@ -34,6 +34,7 @@ public class EncodingJob implements Serializable {
     private String[] manifestTypes;
     private String errorType;
     private String drmType;
+    private String encodeSummary;
 
     public EncodingJob() {
     }
@@ -168,6 +169,14 @@ public class EncodingJob implements Serializable {
 
     public void setVariant(String variant) {
 	this.variant = variant;
+    }
+
+    public String getEncodeSummary() {
+        return encodeSummary;
+    }
+
+    public void setEncodeSummary(String encodeSummary) {
+        this.encodeSummary = encodeSummary;
     }
 
     @Override

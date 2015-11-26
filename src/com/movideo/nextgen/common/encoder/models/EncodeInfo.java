@@ -1,11 +1,9 @@
 package com.movideo.nextgen.common.encoder.models;
 
-import java.util.List;
-
 public class EncodeInfo{
     
     private int encodingProfileId;
-    private List<StreamInfo> streamsList;
+    private StreamInfo streamsList;
     
     public int getEncodingProfileId() {
         return encodingProfileId;
@@ -13,10 +11,10 @@ public class EncodeInfo{
     public void setEncodingProfileId(int encodingProfileId) {
         this.encodingProfileId = encodingProfileId;
     }
-    public List<StreamInfo> getStreamsList() {
+    public StreamInfo getStreamsList() {
         return streamsList;
     }
-    public void setStreamsList(List<StreamInfo> streamsList) {
+    public void setStreamsList(StreamInfo streamsList) {
         this.streamsList = streamsList;
     }
    

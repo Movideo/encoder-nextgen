@@ -23,7 +23,7 @@ import com.movideo.nextgen.encoder.models.EncodingJob;
  * @author yramasundaram
  *
  */
-public class PollBitcodinJobStatus extends Task {
+public class PollBitcodinJobStatusTask extends Task {
 
     private static final Logger log = LogManager.getLogger();
 
@@ -31,7 +31,7 @@ public class PollBitcodinJobStatus extends Task {
 	    workingListName = Constants.REDIS_PENDING_WORKING_LIST, errorListName = Constants.REDIS_POLL_ERROR_LIST,
 	    successListName = Constants.REDIS_FINISHED_LIST;
 
-    public PollBitcodinJobStatus(QueueManager manager, String jobString) {
+    public PollBitcodinJobStatusTask(QueueManager manager, String jobString) {
 	super(manager, jobString);
     }
 
@@ -82,6 +82,7 @@ public class PollBitcodinJobStatus extends Task {
 
 	    } else if (status != null && status.equalsIgnoreCase("Finished")) {
 		queueManager.moveQueues(workingListName, successListName, jobString, job.toString());
+		log.debug("Encode summary for this job is: " + job.getEncodeSummary());
 		// Util.moveJobToNextList(redisPool, workingListName,
 		// successListName, jobString, job.toString());
 

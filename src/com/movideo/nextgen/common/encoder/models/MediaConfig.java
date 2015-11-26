@@ -1,12 +1,12 @@
 package com.movideo.nextgen.common.encoder.models;
 
 public abstract class MediaConfig{
-    private String bitRate;
+    private long bitRate;
     private String codec;
-    public String getBitRate() {
+    public long getBitRate() {
         return bitRate;
     }
-    public void setBitRate(String bitRate) {
+    public void setBitRate(long bitRate) {
         this.bitRate = bitRate;
     }
     public String getCodec() {

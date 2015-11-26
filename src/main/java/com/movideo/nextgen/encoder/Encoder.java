@@ -11,6 +11,7 @@ import com.movideo.nextgen.encoder.config.AppConfig;
 import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.dao.EncodeDAO;
 import com.movideo.nextgen.encoder.models.EncodingJob;
+import com.movideo.nextgen.encoder.test.SampleGenerator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import redis.clients.jedis.Jedis;
@@ -56,6 +57,9 @@ public class Encoder
 
 		TaskFactory taskFactory = new BitcodingTaskFactory(queueManager, encodeDAO);
 
+		initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(),
+				TimeUnit.MINUTES, TaskType.PROCESS_ENCODING_REQUEST.name(), Constants.REDIS_ENCODE_REQUEST_LIST, taskFactory, queueManager);
+
 		log.debug("About to start threadpool manager for Bitcodin job creation");
 		initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(), TimeUnit.MINUTES,
 				TaskType.CREATE_ENCONDING_JOB.name(), Constants.REDIS_INPUT_LIST, taskFactory, queueManager);
@@ -66,12 +70,9 @@ public class Encoder
 
 //		addSampleJobs(redisPool, appConfig);
 
+		SampleGenerator.addSampleRequest(redisPool, appConfig);
 	}
 
-	private static String getMediaUrlFromSegments(int clientId, int mediaId, String fileName)
-	{
-		return Constants.AZURE_INPUT_URL_PREFIX + Constants.AZURE_INPUT_BLOB_CONTAINER_PREFIX + clientId + "/" + Constants.AZURE_INPUT_BLOB_MEDIA_PATH_PREFIX + "/" + mediaId + "/" + fileName;
-	}
 
 	private static void initMessageListener(int corePoolSize, int maxPoolSize, long keepAliveTime, TimeUnit unit,
 			String workerClassName, String listToWatch, TaskFactory taskFactory, QueueManager queueManager)
@@ -84,60 +85,4 @@ public class Encoder
 		manager.start();
 	}
 
-
-	public static void addSampleJobs(JedisPool redisPool, AppConfig appConfig) {
-		Jedis jedis = redisPool.getResource();
-		EncodingJob job = createSampleJobFromConfig(appConfig);
-		for (int i = 0; i < appConfig.getParalleljobCountforTest(); i++)
-		{
-			jedis.lpush(Constants.REDIS_INPUT_LIST, job.toString());
-		}
-
-		jedis.close();
-	}
-
-	public static EncodingJob createSampleJobFromConfig(AppConfig appConfig)
-	{
-
-		String[] manifestTypes = { "mpd" };
-		EncodingJob job = new EncodingJob();
-
-		//	boolean createNewOutput = true;
-
-		// TODO: This needs to be constructed from Dropbox processor
-		job.setStatus(appConfig.getSampleJobStatus());
-		job.setMediaId(appConfig.getSampleJobMediaId());
-		job.setEncodingProfileId(appConfig.getSampleJobencProfileId());
-		job.setClientId(appConfig.getClientId());
-		job.setManifestTypes(manifestTypes);
-		job.setSpeed(appConfig.getSampleJobSpeed());
-		job.setInputFileName(appConfig.getSampleJobInputFile());
-		// job.setDrmType(Constants.CENC_ENCRYPTION_TYPE);
-		job.setProductId("1235-5678-9055");
-		job.setVariant("HD");
-		job.setInputFileUrl(getMediaUrlFromSegments(job.getClientId(), job.getMediaId(), job.getInputFileName()));
-
-	/*
-	 * if need to create new output, create it, else use the default one
-	 * given
-	 */
-		//	if (createNewOutput) {
-		//
-		//	    int outputId = BitcodinProxy.preCreateOutputfromConfig(appConfig.getEncodedOutputStorageType(),
-		//		    Constants.BITCODIN_OUTPUT_DEFAULT_NAME, Constants.AZURE_OUPUT_ACCOUNT_NAME,
-		//		    Constants.AZURE_OUPUT_ACCOUNT_KEY, Constants.AZURE_OUTPUT_BLOB_CONTAINER,
-		//		    appConfig.getEncodedOutputPrefix());
-		//
-		//	    /* fallback to default id if error */
-		//	    if ((outputId == -1)) {
-		//		outputId = appConfig.getSampleJobDefOutputId();
-		//	    }
-		//	    job.setOutputId(outputId);
-		//	} else
-		//	    job.setOutputId(appConfig.getSampleJobDefOutputId());
-
-		log.debug("Sample Job: \n" + job);
-
-		return job;
-	}
 }

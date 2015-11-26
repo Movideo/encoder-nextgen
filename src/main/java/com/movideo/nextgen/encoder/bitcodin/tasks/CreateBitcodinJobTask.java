@@ -48,7 +48,7 @@ public class CreateBitcodinJobTask extends Task
 		JSONObject manifest = new JSONObject();
 		manifest.put("type", type);
 		// TODO: Hacky logic - understand why Bitcodin cannot send our urls back
-		manifest.put("url", createJobResponse.getString("outputPath").replace(".bitblobstorage", "") + "/" + createJobResponse.getInt("jobId") + type);
+		manifest.put("url", createJobResponse.getString("outputPath").replace(".bitblobstorage", "") + "/" + createJobResponse.getInt("jobId") + "." + type);
 		return manifest;
 	}
 

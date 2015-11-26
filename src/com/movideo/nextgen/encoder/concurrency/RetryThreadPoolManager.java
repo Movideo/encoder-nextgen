@@ -59,7 +59,6 @@ public class RetryThreadPoolManager extends Thread {
 
 	    /* New jobs */
 	    while (jedis.llen(listToWatch) > 0) {
-		System.out.println("length inside loop " + jedis.llen(listToWatch));
 
 		// Assumes that the task class already knows that the
 		// job source
@@ -77,14 +76,14 @@ public class RetryThreadPoolManager extends Thread {
 		    public void run() {
 			try {
 			    Runnable task;
-			    task = getTaskInstance(jobString);
-			    if (task == null) {
-				log.fatal("ThreadPoolManager : run() -> Cannot instantiate worker");
-				return;
-			    }
 			    EncodingJob job = Util.getBitcodinJobFromJSON(jobString);
+			    job.setRetry(true);
+			    //
 			    if (job.getRetryCount() == MAX_RETRIES || !job.isRetry()) {
 
+				log.fatal("The job with id : " + job.getEncodingJobId()
+					+ " failed after retries. Moving it into "
+					+ Constants.REDIS_JOB_IRRECOVERABLE_ERROR_LIST);
 				Util.moveJobToNextList(redisPool, workerInputList,
 					Constants.REDIS_JOB_IRRECOVERABLE_ERROR_LIST, jobString, jobString);
 			    }
@@ -92,6 +91,15 @@ public class RetryThreadPoolManager extends Thread {
 				long waitTime = Math.min(getWaitTimeExp(job.getRetryCount()), MAX_WAIT_INTERVAL);
 				Thread.sleep(waitTime);
 				job.setRetryCount(job.getRetryCount() + 1);
+				log.debug("Retrying the job : " + job.getEncodingJobId() + " : Retrying count"
+					+ job.getRetryCount());
+				String updatedJobString = job.toString();
+				task = getTaskInstance(updatedJobString);
+				if (task == null) {
+				    log.fatal("ThreadPoolManager : run() -> Cannot instantiate worker");
+				    return;
+				}
+
 				executor.submit(task);
 
 			    }
@@ -106,7 +114,7 @@ public class RetryThreadPoolManager extends Thread {
 
     public static long getWaitTimeExp(int retryCount) {
 
-	long waitTime = ((long) Math.pow(2, retryCount) * 100L);
+	long waitTime = ((long) Math.pow(2, retryCount) * 10000L);
 
 	return waitTime;
     }

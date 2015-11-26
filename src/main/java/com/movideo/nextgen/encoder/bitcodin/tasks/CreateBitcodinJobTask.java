@@ -1,5 +1,7 @@
 package com.movideo.nextgen.encoder.bitcodin.tasks;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.movideo.nextgen.encoder.models.EncodeSummary;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONException;
@@ -19,6 +21,8 @@ import com.movideo.nextgen.encoder.models.InputConfig;
 import com.movideo.nextgen.encoder.models.OutputConfig;
 
 import net.minidev.json.JSONArray;
+
+import java.io.IOException;
 
 /**
  * Runnable class that submits a new job to Bitcodin and queues it into the
@@ -48,7 +52,7 @@ public class CreateBitcodinJobTask extends Task
 		return manifest;
 	}
 
-	private String getEncodeSummary(EncodingJob job, JSONObject createJobResponse) throws JSONException
+	private EncodeSummary getEncodeSummary(EncodingJob job, JSONObject createJobResponse) throws JSONException, IOException
 	{
 
 		JSONObject encodeSummary = new JSONObject();
@@ -72,7 +76,9 @@ public class CreateBitcodinJobTask extends Task
 		}
 		encodeSummary.put("manifests", manifests);
 
-		return encodeSummary.toString();
+		String json = encodeSummary.toString();
+		ObjectMapper objectMapper  = new ObjectMapper();
+		return objectMapper.reader().withType(EncodeSummary.class).readValue(json);
 	}
 
 	@Override public void run()
@@ -176,7 +182,7 @@ public class CreateBitcodinJobTask extends Task
 			{
 				job.setEncodeSummary(getEncodeSummary(job, response));
 			}
-			catch (JSONException e)
+			catch (JSONException | IOException e)
 			{
 				log.error("An error occured while creating the job summary", e);
 				job.setStatus(Constants.STATUS_JOB_FAILED);

@@ -4,6 +4,11 @@ version '1.0'
 apply plugin: 'java'
 apply plugin: 'application'
 
+allprojects {
+    sourceCompatibility = 1.7
+    targetCompatibility = 1.7
+}
+
 mainClassName = "com.movideo.nextgen.encoder.Encoder"
 
 repositories {

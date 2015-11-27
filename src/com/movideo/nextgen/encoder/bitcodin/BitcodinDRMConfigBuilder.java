@@ -2,7 +2,8 @@ package com.movideo.nextgen.encoder.bitcodin;
 
 import javax.annotation.Nonnull;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -14,7 +15,7 @@ import com.movideo.nextgen.encoder.models.EncodingJob;
 
 public class BitcodinDRMConfigBuilder {
 
-    private static final Logger log = Logger.getLogger(BitcodinDRMConfigBuilder.class);
+    private static final Logger log = LogManager.getLogger();
 
     @Nonnull
     public static JSONObject getDRMConfigJSON(EncodingJob job) throws BitcodinException {

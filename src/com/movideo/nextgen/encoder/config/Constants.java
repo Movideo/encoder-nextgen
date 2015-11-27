@@ -16,6 +16,9 @@ public interface Constants {
 
     /* Redis */
     String REDIS_CONNECTION_STRING = "localhost";
+    String REDIS_ENCODE_REQUEST_LIST = "ENCODE_REQUEST_LIST";
+    String REDIS_ENCODE_REQUEST_WORKING_LIST = "ENCODE_REQUEST_LIST_WORKING";
+    String REDIS_ENCODE_REQUEST_ERROR_LIST = "ENCODE_REQUEST_ERROR_LIST";
     String REDIS_INPUT_LIST = "INPUT_LIST";
     String REDIS_INPUT_WORKING_LIST = "INPUT_LIST_WORKING";
     String REDIS_PENDING_LIST = "PENDING_LIST";
@@ -23,9 +26,6 @@ public interface Constants {
     String REDIS_JOB_ERROR_LIST = "JOB_ERROR_LIST";
     String REDIS_POLL_ERROR_LIST = "POLL_ERROR_LIST";
     String REDIS_FINISHED_LIST = "FINISHED_LIST";
-    String REDIS_JOB_ERROR_WORKING_LIST = "JOB_ERROR_LIST_WORKING";
-    String REDIS_POLL_ERROR_WORKING_LIST = "POLL_ERROR_LIST_WORKING";
-    String REDIS_JOB_IRRECOVERABLE_ERROR_LIST = "IRRECOVERABLE_ERROR_LIST";
 
     /* Bitcodin */
     String BITCODIN_API_KEY = "78e7e7a41713c7c5d3b0aaa2279ec9c07a84d60e84df1bcb5a97ddd6e6ecb711";
@@ -46,11 +46,9 @@ public interface Constants {
     /* Output BLOB details */
     String AZURE_OUPUT_ACCOUNT_NAME = "movideoqaencoded1";
     String AZURE_OUPUT_ACCOUNT_KEY = "vbSDcGSy2mbW55B2xMpkJ5Ns93CxNYJUIOz0kEdtQzhzv1+Wh87o5Daf9cf9zt6v1h2nLdiR/bzQqGvEPWFAGA==";
-    String AZURE_OUTPUT_BLOB_CONTAINER = "encoded-524";
-    String AZURE_ENODED_OUTPUT_PREFIX = "demo";
-
-    /* Bitcodin defaults used for Output creation if required */
-    String BITCODIN_OUTPUT_DEFAULT_NAME = "bitcodinrun";
+    String AZURE_OUTPUT_BLOB_CONTAINER_PREFIX = "encoded-";
+    String BITCODIN_OUTPUT_NAME_PREFIX = "Output-";
+    String AZURE_OUTPUT_BLOB_MEDIA_PATH_PREFIX = "media";
 
     /* Error defs */
     String NO_MEDIA_ID_IN_INPUT = "NO_MEDIA_ID_IN_INPUT";

@@ -1,6 +1,7 @@
 package com.movideo.nextgen.encoder.bitcodin;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -9,6 +10,7 @@ import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 import com.movideo.nextgen.encoder.models.EncodingProfileInfo;
 import com.movideo.nextgen.encoder.models.InputConfig;
+import com.movideo.nextgen.encoder.models.OutputConfig;
 import com.movideo.nextgen.encoder.models.StreamConfig;
 
 /**
@@ -23,7 +25,7 @@ import com.movideo.nextgen.encoder.models.StreamConfig;
  */
 public class BitcodinProxy {
 
-    private static final Logger log = Logger.getLogger(BitcodinProxy.class);
+    private static final Logger log = LogManager.getLogger();
 
     public static JSONObject listJobs() throws BitcodinException {
 	return BitcodinHttpHelper.makeHttpCall("jobs?page=1", null, "get");
@@ -33,7 +35,7 @@ public class BitcodinProxy {
 	return BitcodinHttpHelper.makeHttpCall("job/" + jobId + "/status", null, "get");
     }
 
-    public static JSONObject createJob(InputConfig inputConfig, EncodingJob job, JSONObject drmConfig)
+    public static JSONObject createJob(InputConfig inputConfig, OutputConfig outputConfig, EncodingJob job, JSONObject drmConfig)
 	    throws BitcodinException {
 
 	JSONObject payload = new JSONObject();
@@ -45,24 +47,38 @@ public class BitcodinProxy {
 	    payload.put("speed", job.getSpeed());
 	    // TODO: Add support for audioMetadata
 	    payload.put("outputId", job.getOutputId());
-	    log.debug("Payload is ready");
+	    log.debug("About to create input");
 
 	    JSONObject response = createAzureInput(inputConfig, job);
 
 	    if (response == null) {
 		throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, "Response is null", null);
 	    }
+	   
+	    log.debug("Created input id: " + response.get("inputId"));
+	    payload.put("inputId", response.getInt("inputId"));
+	    
+	    response = createAzureOutput(outputConfig);
 
-	    payload.put("inputId", Integer.parseInt(response.get("inputId").toString()));
+	    if (response == null) {
+		throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, "Response is null", null);
+	    }
+	    
+	    log.debug("Created output id: " + response.get("outputId"));
+	    payload.put("outputId", response.getInt("outputId"));
+
+	    
 	    String drmType = job.getDrmType();
-	    switch (drmType) {
-	    case Constants.CENC_ENCRYPTION_TYPE:
-		payload.put("drmConfig", drmConfig);
-		break;
-	    case Constants.AES_ENCRYPTION_TYPE:
-	    case Constants.FPS_ENCRYPTION_TYPE:
-		payload.put("hlsEncryptionConfig", drmConfig);
-		break;
+	    if (drmType != null) {
+		switch (drmType) {
+		case Constants.CENC_ENCRYPTION_TYPE:
+		    payload.put("drmConfig", drmConfig);
+		    break;
+		case Constants.AES_ENCRYPTION_TYPE:
+		case Constants.FPS_ENCRYPTION_TYPE:
+		    payload.put("hlsEncryptionConfig", drmConfig);
+		    break;
+		}
 	    }
 	    log.info("BitcodinProxy: createJob() -> Payload sent to Bitcodin create Job API :" + payload.toString());
 	    response = BitcodinHttpHelper.makeHttpCall("job/create", payload.toString(), "post");
@@ -125,37 +141,36 @@ public class BitcodinProxy {
      * pre-created.
      */
 
-    public static int preCreateOutputfromConfig(String type, String name, String accountName, String accountKey,
-	    String container, String prefix) {
+//    public static int preCreateOutputfromConfig(String type, String name, String accountName, String accountKey,
+//	    String container, String prefix) {
+//
+//	JSONObject response;
+//	int outputId = -1;
+//
+//	try {
+//	    response = BitcodinProxy.createAzureOutput(type, name, accountName, accountKey, container, prefix);
+//	    log.debug("BitcodinProxy: preCreateOutputfromConfig() ->createAzureOutput response from Bitcodin");
+//
+//	} catch (BitcodinException e) {
+//	    log.error("An error occured while creating output", e);
+//
+//	    return outputId;
+//	}
+//
+//	try {
+//	    outputId = response.getInt("outputId");
+//	    log.debug("BitcodinProxy: preCreateOutputfromConfig() ->output Id is" + response.get("outputId"));
+//
+//	} catch (JSONException e) {
+//	    log.error("Bitcodin Error:Could not create new output", e);
+//	    return outputId;
+//
+//	}
+//
+//	return outputId;
+//    }
 
-	JSONObject response;
-	int outputId = -1;
-
-	try {
-	    response = BitcodinProxy.createAzureOutput(type, name, accountName, accountKey, container, prefix);
-	    log.debug("BitcodinProxy: preCreateOutputfromConfig() ->createAzureOutput response from Bitcodin");
-
-	} catch (BitcodinException e) {
-	    log.error("An error occured while creating output", e);
-
-	    return outputId;
-	}
-
-	try {
-	    outputId = response.getInt("outputId");
-	    log.debug("BitcodinProxy: preCreateOutputfromConfig() ->output Id is" + response.get("outputId"));
-
-	} catch (JSONException e) {
-	    log.error("Bitcodin Error:Could not create new output", e);
-	    return outputId;
-
-	}
-
-	return outputId;
-    }
-
-    public static JSONObject createAzureOutput(String type, String name, String accountName, String accountKey,
-	    String container, String prefix) throws BitcodinException {
+    public static JSONObject createAzureOutput(OutputConfig config) throws BitcodinException {
 
 	JSONObject payload = new JSONObject();
 
@@ -170,12 +185,12 @@ public class BitcodinProxy {
 	     * "testrunbitcodin2");
 	     */
 
-	    payload.put("type", type);
-	    payload.put("name", name);
-	    payload.put("accountName", accountName);
-	    payload.put("accountKey", accountKey);
-	    payload.put("container", container);
-	    payload.put("prefix", prefix);
+	    payload.put("type", config.getType());
+	    payload.put("name", config.getName());
+	    payload.put("accountName", config.getAccountName());
+	    payload.put("accountKey", config.getAccountKey());
+	    payload.put("container", config.getContainer());
+	    payload.put("prefix", config.getPrefix());
 	    log.info("BitcodinProxy: createAzureOutput() ->Payload to output create: \n" + payload);
 	    return BitcodinHttpHelper.makeHttpCall("output/create", payload.toString(), "post");
 

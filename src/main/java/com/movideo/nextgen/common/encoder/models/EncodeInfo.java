@@ -3,7 +3,7 @@ package com.movideo.nextgen.common.encoder.models;
 public class EncodeInfo{
     
     private int encodingProfileId;
-    private StreamInfo streamsList;
+    private StreamInfo streamInfo;
     
     public int getEncodingProfileId() {
         return encodingProfileId;
@@ -11,11 +11,11 @@ public class EncodeInfo{
     public void setEncodingProfileId(int encodingProfileId) {
         this.encodingProfileId = encodingProfileId;
     }
-    public StreamInfo getStreamsList() {
-        return streamsList;
+    public StreamInfo getStreamInfo() {
+        return streamInfo;
     }
-    public void setStreamsList(StreamInfo streamsList) {
-        this.streamsList = streamsList;
+    public void setStreamInfo(StreamInfo streamInfo) {
+        this.streamInfo = streamInfo;
     }
    
 }

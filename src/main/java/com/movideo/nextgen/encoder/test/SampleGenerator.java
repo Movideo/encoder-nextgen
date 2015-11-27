@@ -2,7 +2,6 @@ package com.movideo.nextgen.encoder.test;
 
 import com.google.gson.Gson;
 import com.movideo.nextgen.common.encoder.models.*;
-import com.movideo.nextgen.encoder.Encoder;
 import com.movideo.nextgen.encoder.config.AppConfig;
 import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.models.EncodingJob;
@@ -69,7 +68,7 @@ public class SampleGenerator
 
 		EncodeInfo encodeInfo = new EncodeInfo();
 		encodeInfo.setEncodingProfileId(37944);
-		encodeInfo.setStreamsList(streamInfo);
+		encodeInfo.setStreamInfo(streamInfo);
 
 		List<EncodeInfo> encodeInfoList = new ArrayList<>();
 		encodeInfoList.add(encodeInfo);

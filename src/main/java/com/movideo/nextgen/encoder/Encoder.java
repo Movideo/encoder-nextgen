@@ -14,9 +14,9 @@ import com.movideo.nextgen.encoder.models.EncodingJob;
 import com.movideo.nextgen.encoder.test.SampleGenerator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
+import redis.clients.jedis.Protocol;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,7 +48,8 @@ public class Encoder
 			appConfig = new AppConfig(prop);
 		}
 
-		JedisPool redisPool = new JedisPool(new JedisPoolConfig(), appConfig.getRedisConnectionString());
+		JedisPool redisPool = new JedisPool(new JedisPoolConfig(), appConfig.getRedisConnectionString(),
+				appConfig.getRedisPort(), Protocol.DEFAULT_TIMEOUT, appConfig.getRedisPassword());
 		RedisQueueConnectionConfig config = new RedisQueueConnectionConfig();
 		config.setPool(redisPool);
 		QueueManager queueManager = new RedisQueueManager(config);
@@ -70,7 +71,7 @@ public class Encoder
 
 //		addSampleJobs(redisPool, appConfig);
 
-		SampleGenerator.addSampleRequest(redisPool, appConfig);
+//		SampleGenerator.addSampleRequest(redisPool, appConfig);
 	}
 
 

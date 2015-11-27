@@ -66,7 +66,7 @@ public class ProcessEncodeRequestTask extends Task {
 	    job.setInputFileUrl(Util.getMediaUrlFromSegments(encodeRequest.getClientId(), encodeRequest.getMediaId(),
 		    encodeRequest.getInputFilename()));
 	    log.debug("Input file url set");
-	    StreamInfo streams = encodeInfo.getStreamsList();
+	    StreamInfo streams = encodeInfo.getStreamInfo();
 	    log.debug("Got streams");
 	    job.setManifestTypes(streams.getManifestType().toArray(new String[streams.getManifestType().size()]));
 	    log.debug("Got manifest types");

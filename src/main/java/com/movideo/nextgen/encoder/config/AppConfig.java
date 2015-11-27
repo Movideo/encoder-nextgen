@@ -11,6 +11,8 @@ public class AppConfig
 {
 
 	private static final Logger log = LogManager.getLogger();
+	private final int redisPort;
+	private final String redisPassword;
 
 	private int clientId;
 	private int corePoolSize;
@@ -121,6 +123,16 @@ public class AppConfig
 		this.databaseName = databaseName;
 	}
 
+	public int getRedisPort()
+	{
+		return redisPort;
+	}
+
+	public String getRedisPassword()
+	{
+		return redisPassword;
+	}
+
 	public AppConfig(Properties prop)
 	{
 
@@ -130,6 +142,8 @@ public class AppConfig
 		keepAliveTime = Long.parseLong(prop.getProperty("threadpool.keepAliveTime"));
 
 		redisConnectionString = prop.getProperty("redis.connectionString");
+		redisPort = Integer.parseInt(prop.getProperty("redis.port"));
+		redisPassword = prop.getProperty("redis.password");
 		encodedOutputPrefix = prop.getProperty("encoded.output.prefix");
 		encodedOutputStorageType = prop.getProperty("encoded.output.storage.type");
 

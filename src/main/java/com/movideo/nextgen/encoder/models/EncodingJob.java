@@ -35,6 +35,17 @@ public class EncodingJob implements Serializable {
     private String errorType;
     private String drmType;
     private EncodeSummary encodeSummary;
+    private boolean retry;
+    private String originalJobstring;
+    private long retryTime;
+
+    public boolean isRetry() {
+	return retry;
+    }
+
+    public void setRetry(boolean retry) {
+	this.retry = retry;
+    }
 
     public EncodingJob() {
     }
@@ -172,11 +183,27 @@ public class EncodingJob implements Serializable {
     }
 
     public EncodeSummary getEncodeSummary() {
-        return encodeSummary;
+	return encodeSummary;
     }
 
     public void setEncodeSummary(EncodeSummary encodeSummary) {
-        this.encodeSummary = encodeSummary;
+	this.encodeSummary = encodeSummary;
+    }
+
+    public String getOriginalJobstring() {
+	return originalJobstring;
+    }
+
+    public void setOriginalJobstring(String originalJobstring) {
+	this.originalJobstring = originalJobstring;
+    }
+
+    public long getRetryTime() {
+	return retryTime;
+    }
+
+    public void setRetryTime(long retryTime) {
+	this.retryTime = retryTime;
     }
 
     @Override

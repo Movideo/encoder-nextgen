@@ -1,6 +1,7 @@
 package com.movideo.nextgen.encoder.bitcodin.tasks;
 
 import java.io.IOException;
+import java.util.Calendar;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,14 +31,18 @@ import net.minidev.json.JSONArray;
  *
  * @author yramasundaram
  */
-public class CreateBitcodinJobTask extends Task {
+public class RetryCreateBitcodinJobTask extends Task {
 
     private static final Logger log = LogManager.getLogger();
+    private static final int MAX_RETRIES = 3;
+    private static final long MAX_WAIT_INTERVAL = 600000;
+    private Calendar calendar = Calendar.getInstance();
 
-    private String workingListName = Constants.REDIS_INPUT_WORKING_LIST, errorListName = Constants.REDIS_JOB_ERROR_LIST,
-	    successListName = Constants.REDIS_PENDING_LIST;
+    private String workingListName = Constants.REDIS_JOB_ERROR_WORKING_LIST,
+	    errorListName = Constants.REDIS_JOB_ERROR_LIST, successListName = Constants.REDIS_PENDING_LIST,
+	    irrecoverableListName = Constants.REDIS_JOB_IRRECOVERABLE_ERROR_LIST;
 
-    public CreateBitcodinJobTask(QueueManager queueManager, String jobString) {
+    public RetryCreateBitcodinJobTask(QueueManager queueManager, String jobString) {
 	super(queueManager, jobString);
     }
 
@@ -83,7 +88,7 @@ public class CreateBitcodinJobTask extends Task {
     @Override
     public void run() {
 
-	log.debug("CreateBitcodinJob : run() -> Executing job creator");
+	log.debug("RetryCreateBitcodinJobTask : run() -> Executing job creator");
 
 	JSONObject response, drmConfig = null;
 	EncodingJob job;
@@ -91,20 +96,18 @@ public class CreateBitcodinJobTask extends Task {
 	// int mediaId;
 	// TODO: Replace all Sysouts with proper log statements. Retain key
 	// information for debug purposes
-
-	log.debug("CreateBitcodinJob : run() -> Job string is: " + jobString);
+	log.debug("RetryCreateBitcodinJobTask : run() -> Job string is: " + jobString);
 
 	try {
 
 	    try {
 		job = Util.getBitcodinJobFromJSON(jobString);
+
 	    } catch (JsonSyntaxException e) {
 		job = new EncodingJob();
 		job.setOriginalJobstring(jobString);
 		log.error("Could not extract bitcodin job from job string", e);
 		queueManager.moveQueues(workingListName, errorListName, jobString, job.getOriginalJobstring());
-		// Util.moveJobToNextList(redisPool, workingListName,
-		// errorListName, jobString, jobString);
 		return;
 	    }
 
@@ -120,80 +123,83 @@ public class CreateBitcodinJobTask extends Task {
 	    // TODO: Track these statuses by Media Id. Dropbox processor creates
 	    // the
 	    // first entry
-	    // which needs to be subsquently updated at each point.
-	    job.setStatus(Constants.STATUS_RECEIVED);
+	    // which needs to be subsequently updated at each point.
+	    job.setStatus(Constants.STATUS_JOB_RETRY);
+	    if (job.isRetry() && job.getRetryCount() < MAX_RETRIES) {
+		if (job.getRetryTime() < calendar.getTimeInMillis()) {
+		    long waitTime = Util.getWaitTimeExp(job.getRetryCount());
+		    job.setRetryTime(waitTime + calendar.getTimeInMillis());
+		    job.setRetryCount(job.getRetryCount() + 1);
 
-	    if (job.getDrmType() != null) {
-		try {
-		    drmConfig = BitcodinDRMConfigBuilder.getDRMConfigJSON(job);
-		} catch (BitcodinException e) {
-		    // TODO: Define an error handler to avoid repetition
-		    if (e.getStatus() >= Constants.STATUS_CODE_SERVER_ERROR) {
-			job.setRetry(true);
+		    if (job.getDrmType() != null) {
+			try {
+			    drmConfig = BitcodinDRMConfigBuilder.getDRMConfigJSON(job);
+			} catch (BitcodinException e) {
+			    job.setRetry(true);
+			    // TODO: Define an error handler to avoid repetition
+			    log.error("An error occured while fetching DRM configuration, retrying count "
+				    + job.getRetryCount(), e);
+			    job.setStatus(Constants.STATUS_RETRY_FAILED);
+			    queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+			    return;
+			}
 		    }
 
-		    log.error("An error occured while fetching DRM configuration", e);
-		    job.setStatus(Constants.STATUS_JOB_FAILED);
-		    // jobString = Util.convertBitcodinJobToJSON(job);
+		    try {
+			log.debug("About to call createJob");
+			response = BitcodinProxy.createJob(inputConfig, outputConfig, job, drmConfig);
+			log.debug("RetryCreateBitcodinJobTask : run() -> Got back the response from Bitcodin");
+			job.setStatus(Constants.STATUS_RETRY_SUBMITTED);
+		    } catch (BitcodinException e) {
+			job.setRetry(true);
+			log.error("Job creation failed, retry count " + job.getRetryCount(), e);
+			job.setStatus(Constants.STATUS_RETRY_FAILED);
+			queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+			return;
+		    }
+
+		    log.debug("Response string is: " + response.toString());
+
+		    // TODO: Error handling. Assumes Bitcodin will always return
+		    // success response if response code is a non-error code
+
+		    try {
+			job.setEncodingJobId(response.getInt("jobId"));
+		    } catch (JSONException e) {
+			// This shouldn't happen either. Implies we got a 200
+			// from
+			// Bitcodin but no jobId
+			log.error("An error occured while fetching jobId from the response", e);
+			job.setStatus(Constants.STATUS_RETRY_FAILED);
+			queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+			return;
+		    }
+
+		    try {
+			job.setEncodeSummary(getEncodeSummary(job, response));
+		    } catch (JSONException | IOException e) {
+			log.error("An error occured while creating the job summary", e);
+			job.setStatus(Constants.STATUS_RETRY_FAILED);
+			queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+			return;
+		    }
+
+		    log.debug("Job failed " + job.getRetryCount() + " times while creating");
+		    job.setRetryCount(0);
+		    queueManager.moveQueues(workingListName, successListName, jobString, job.toString());
+
+		} else
 		    queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-		    System.out.println("jobstring   " + jobString + "\n jobObject   " + job.toString());
-		    // Util.moveJobToNextList(redisPool, workingListName,
-		    // errorListName, jobString, job.toString());
-
-		    return;
-		}
+	    } else {
+		if (!job.isRetry())
+		    log.debug("Failed due to invalid JSON -> " + job.getOriginalJobstring()
+			    + " moving to irrecoverable list");
+		else
+		    log.debug("Maximum count of " + job.getRetryCount() + " reached moving to irrecoverable list");
+		queueManager.moveQueues(workingListName, irrecoverableListName, jobString, job.toString());
 	    }
-
-	    try {
-		log.debug("About to call createJob");
-		response = BitcodinProxy.createJob(inputConfig, outputConfig, job, drmConfig);
-		log.debug("CreateBitcodinJob : run() -> Got back the response from Bitcodin");
-		job.setStatus(Constants.STATUS_JOB_SUBMITTED);
-	    } catch (BitcodinException e) {
-		if (e.getStatus() >= Constants.STATUS_CODE_SERVER_ERROR) {
-		    job.setRetry(true);
-		}
-		log.error("Job creation failed", e);
-		job.setStatus(Constants.STATUS_JOB_FAILED);
-		queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-		// Util.moveJobToNextList(redisPool, workingListName,
-		// errorListName, jobString, job.toString());
-
-		return;
-	    }
-
-	    log.debug("Response string is: " + response.toString());
-
-	    // TODO: Error handling. Assumes Bitcodin will always return success
-	    // response if response code is a non-error code
-
-	    try {
-		job.setEncodingJobId(response.getInt("jobId"));
-	    } catch (JSONException e) {
-		// This shouldn't happen either. Implies we got a 200 from
-		// Bitcodin but no jobId
-		log.error("An error occured while fetching jobId from the response", e);
-		job.setStatus(Constants.STATUS_JOB_FAILED);
-		queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-		// Util.moveJobToNextList(redisPool, workingListName,
-		// errorListName, jobString, job.toString());
-		return;
-	    }
-
-	    try {
-		job.setEncodeSummary(getEncodeSummary(job, response));
-	    } catch (JSONException | IOException e) {
-		log.error("An error occured while creating the job summary", e);
-		job.setStatus(Constants.STATUS_JOB_FAILED);
-		queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-		return;
-	    }
-
-	    // Util.moveJobToNextList(redisPool, workingListName,
-	    // successListName, jobString, job.toString());
-	    queueManager.moveQueues(workingListName, successListName, jobString, job.toString());
 	} catch (QueueException e) {
-	    log.error("CreateBitcodinJob :: Queue Exception when trying to process job", e);
+	    log.error("RetryCreateBitcodinJobTask :: Queue Exception when trying to process job", e);
 	    return;
 	}
     }

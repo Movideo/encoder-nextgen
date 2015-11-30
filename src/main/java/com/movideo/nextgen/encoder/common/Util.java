@@ -110,10 +110,15 @@ public class Util {
     // "{\"mediaId\":837935,\"encodingProfileId\":35364,\"inputFileName\":\"ForYourIceOnly.mp4\",\"status\":\"NEW\",\"speed\":\"premium\",\"bitcodinJobId\":0,\"serialversionuid\":-2746341744995209121,\"outputId\":19496,\"clientId\":524,\"inputId\":0,\"inputFileUrl\":\"http://movideoqaoriginal1.blob.core.windows.net/original-524/media/837935/ForYourIceOnly.mp4\",\"manifestTypes\":[\"mpd\"],\"retryCount\":0}";
     // getBitcodinJobFromJSON(json);
     // }
-    
+
     public static String getMediaUrlFromSegments(int clientId, int mediaId, String fileName) {
 	return Constants.AZURE_INPUT_URL_PREFIX + Constants.AZURE_INPUT_BLOB_CONTAINER_PREFIX + clientId + "/"
 		+ Constants.AZURE_INPUT_BLOB_MEDIA_PATH_PREFIX + "/" + mediaId + "/" + fileName;
+    }
+
+    public static long getWaitTimeExp(int retryCount) {
+	long waitTime = ((long) Math.pow(2, retryCount) * 10000L);
+	return waitTime;
     }
 
 }

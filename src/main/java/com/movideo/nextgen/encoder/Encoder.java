@@ -1,8 +1,6 @@
 package com.movideo.nextgen.encoder;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -17,10 +15,10 @@ import com.movideo.nextgen.common.queue.redis.RedisQueueConnectionConfig;
 import com.movideo.nextgen.common.queue.redis.RedisQueueManager;
 import com.movideo.nextgen.encoder.bitcodin.tasks.BitcodingTaskFactory;
 import com.movideo.nextgen.encoder.bitcodin.tasks.TaskType;
+import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.config.AppConfig;
 import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.dao.EncodeDAO;
-import com.movideo.nextgen.encoder.models.EncodingJob;
 import com.movideo.nextgen.encoder.test.SampleGenerator;
 
 import redis.clients.jedis.JedisPool;
@@ -28,27 +26,20 @@ import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.Protocol;
 
 /**
- * Test class with main method that does all the initialization. Should be
- * converted to an orchestrator class, called by Dropbox processor
+ * Test class with main method that does all the initialization. Should be converted to an orchestrator class, called by Dropbox processor
  *
  * @author yramasundaram
  */
-public class Encoder {
+public class Encoder
+{
 
-    private static EncodingJob job;
-    private static final Logger log = LogManager.getLogger();
+	private static final Logger log = LogManager.getLogger();
 
-    public static void main(String[] args) throws InterruptedException, IOException {
-	AppConfig appConfig;
-	ClassLoader loader = Thread.currentThread().getContextClassLoader();
-	try (InputStream in = loader.getResourceAsStream("config.properties")) {
-	    Properties prop = new Properties();
-	    prop.load(in);
-	    appConfig = new AppConfig(prop);
-	}
+	public static void main(String[] args) throws InterruptedException, IOException
+	{
 
-	JedisPool redisPool = new JedisPool(new JedisPoolConfig(), appConfig.getRedisConnectionString(),
-		appConfig.getRedisPort(), Protocol.DEFAULT_TIMEOUT, appConfig.getRedisPassword());
+	AppConfig appConfig = Util.readPropertyFile();
+	JedisPool redisPool = new JedisPool(new JedisPoolConfig(), appConfig.getRedisConnectionString(), appConfig.getRedisPort(), Protocol.DEFAULT_TIMEOUT, appConfig.getRedisPassword());
 	RedisQueueConnectionConfig config = new RedisQueueConnectionConfig();
 	config.setPool(redisPool);
 	QueueManager queueManager = new RedisQueueManager(config);
@@ -57,44 +48,32 @@ public class Encoder {
 
 	TaskFactory taskFactory = new BitcodingTaskFactory(queueManager, encodeDAO);
 
-	initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(),
-		TimeUnit.MINUTES, TaskType.PROCESS_ENCODING_REQUEST.name(), Constants.REDIS_ENCODE_REQUEST_LIST,
-		taskFactory, queueManager);
+	initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(), TimeUnit.MINUTES, TaskType.PROCESS_ENCODING_REQUEST.name(), Constants.REDIS_ENCODE_REQUEST_LIST, taskFactory, queueManager);
 
 	log.debug("About to start threadpool manager for Bitcodin job creation");
-	initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(),
-		TimeUnit.MINUTES, TaskType.CREATE_ENCONDING_JOB.name(), Constants.REDIS_INPUT_LIST, taskFactory,
-		queueManager);
+	initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(), TimeUnit.MINUTES, TaskType.CREATE_ENCONDING_JOB.name(), Constants.REDIS_INPUT_LIST, taskFactory, queueManager);
 
 	log.debug("About to start threadpool manager for Bitcodin job poller");
-	initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(),
-		TimeUnit.MINUTES, TaskType.POLL_ENCODING_JOB_STATUS.name(), Constants.REDIS_PENDING_LIST, taskFactory,
-		queueManager);
+	initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(), TimeUnit.MINUTES, TaskType.POLL_ENCODING_JOB_STATUS.name(), Constants.REDIS_PENDING_LIST, taskFactory, queueManager);
 
 	log.debug("About to start threadpool manager for Retry Bitcodin job creation");
-	initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(),
-		TimeUnit.MINUTES, TaskType.RETRY_CREATE_JOB.name(), Constants.REDIS_JOB_ERROR_LIST, taskFactory,
-		queueManager);
+	initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(), TimeUnit.MINUTES, TaskType.RETRY_CREATE_JOB.name(), Constants.REDIS_JOB_ERROR_LIST, taskFactory, queueManager);
 
 	log.debug("About to start threadpool manager for Retry Bitcodin job poller");
-	initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(),
-		TimeUnit.MINUTES, TaskType.RETRY_POLL_STATUS.name(), Constants.REDIS_POLL_ERROR_LIST, taskFactory,
-		queueManager);
+	initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(), TimeUnit.MINUTES, TaskType.RETRY_POLL_STATUS.name(), Constants.REDIS_POLL_ERROR_LIST, taskFactory, queueManager);
 
 	SampleGenerator.addSampleJobs(redisPool, appConfig);
 
 	// SampleGenerator.addSampleRequest(redisPool, appConfig);
-    }
+	}
 
-    private static void initMessageListener(int corePoolSize, int maxPoolSize, long keepAliveTime, TimeUnit unit,
-	    String workerClassName, String listToWatch, TaskFactory taskFactory, QueueManager queueManager) {
+	private static void initMessageListener(int corePoolSize, int maxPoolSize, long keepAliveTime, TimeUnit unit, String workerClassName, String listToWatch, TaskFactory taskFactory, QueueManager queueManager)
+	{
 
-	ThreadPoolExecutor executor = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, unit,
-		new LinkedBlockingDeque<Runnable>());
+	ThreadPoolExecutor executor = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, unit, new LinkedBlockingDeque<Runnable>());
 
-	ThreadPoolManager manager = new ThreadPoolManager(queueManager, taskFactory, listToWatch, executor,
-		workerClassName);
+	ThreadPoolManager manager = new ThreadPoolManager(queueManager, taskFactory, listToWatch, executor, workerClassName);
 	manager.start();
-    }
+	}
 
 }

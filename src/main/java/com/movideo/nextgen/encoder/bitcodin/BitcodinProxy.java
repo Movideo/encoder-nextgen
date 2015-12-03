@@ -1,5 +1,6 @@
 package com.movideo.nextgen.encoder.bitcodin;
 
+import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
@@ -8,6 +9,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
 import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 import com.movideo.nextgen.encoder.models.EncodingProfileInfo;
@@ -36,6 +38,43 @@ public class BitcodinProxy
 	{
 		return BitcodinHttpHelper.makeHttpCall("job/" + jobId + "/status", null, "get");
 	}
+	
+	public static JSONObject getTransferStatus(long jobId) throws BitcodinException
+	{
+		return BitcodinHttpHelper.makeHttpCall("job/" + jobId + "/transfers", null, "get");
+	}
+
+	public static JSONObject transferToAzure(long jobId, long outputId) throws BitcodinException
+	{
+		JSONObject payload = new JSONObject();
+		try
+		{
+			payload.put("jobId", jobId);
+			payload.put("outputId", outputId);
+		}
+		catch(JSONException e)
+		{
+			throw new BitcodinException(Constants.STATUS_CODE_BAD_REQUEST, e.getMessage(), e);
+		}
+		return BitcodinHttpHelper.makeHttpCall("job/transfer", payload.toString(), "post");
+	}
+
+	public static JSONObject createManifestWithSubs(long jobId, List<SubtitleInfo> subtitles, String outputFileName, String manifestType, String subtitleType) throws BitcodinException
+	{
+		JSONObject payload = new JSONObject();
+		try
+		{
+			payload.put("jobId", jobId);
+			payload.put("subtitles", new JSONArray(subtitles));
+			payload.put("outputFileName", outputFileName);
+		}
+		catch(JSONException e)
+		{
+			throw new BitcodinException(Constants.STATUS_CODE_BAD_REQUEST, e.getMessage(), e);
+		}
+		String apiPath = "manifest/" + manifestType + "/" + subtitleType;
+		return BitcodinHttpHelper.makeHttpCall(apiPath, payload.toString(), "post");
+	}
 
 	public static JSONObject createJob(InputConfig inputConfig, OutputConfig outputConfig, EncodingJob job, Map<String, JSONObject> drmConfigMap)
 			throws BitcodinException
@@ -45,7 +84,7 @@ public class BitcodinProxy
 
 		try
 		{
-
+			boolean hasSubs = (job.getSubtitleList() != null) ? true : false;
 			payload.put("encodingProfileId", job.getEncodingProfileId());
 			payload.put("manifestTypes", job.getManifestTypes());
 			payload.put("speed", job.getSpeed());
@@ -70,8 +109,15 @@ public class BitcodinProxy
 				throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, "Response is null", null);
 			}
 
-			log.debug("Created output id: " + response.get("outputId"));
-			payload.put("outputId", response.getInt("outputId"));
+			long outputId = response.getLong("outputId");
+
+			log.debug("Created output id: " + outputId);
+
+			//If the job has subtitles to be processed, output should not be specified
+			if(!hasSubs)
+			{
+				payload.put("outputId", outputId);
+			}
 
 			if(drmConfigMap != null)
 			{
@@ -81,6 +127,10 @@ public class BitcodinProxy
 
 			log.info("BitcodinProxy: createJob() -> Payload sent to Bitcodin create Job API :" + payload.toString());
 			response = BitcodinHttpHelper.makeHttpCall("job/create", payload.toString(), "post");
+			if(!hasSubs)
+			{
+				response.put("outputId", outputId);
+			}
 			log.debug("BitcodinProxy: createJob() -> Returning response from Bitcodin: \n" + response.toString());
 
 			return response;

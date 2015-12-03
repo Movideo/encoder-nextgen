@@ -1,8 +1,11 @@
 package com.movideo.nextgen.encoder.models;
 
 import java.io.Serializable;
+import java.util.List;
 
 import org.json.JSONObject;
+
+import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
 
 /**
  * Holds all the information related to a Bitcodin job. This gets converted to a JSON string and back, when storing and processing respectively
@@ -20,8 +23,8 @@ public class EncodingJob implements Serializable
 	private int encodingJobId;
 	private int retryCount;
 	private int encodingProfileId;
-	private int inputId;
-	private int outputId;
+	private long inputId;
+	private long outputId;
 	private int clientId;
 	private int mediaId;
 	private String productId;
@@ -35,6 +38,7 @@ public class EncodingJob implements Serializable
 	private boolean protectionRequired;
 	private EncodeSummary encodeSummary;
 	private boolean reprocess;
+	private List<SubtitleInfo> subtitleList;
 
 	public EncodingJob()
 	{
@@ -50,22 +54,22 @@ public class EncodingJob implements Serializable
 		this.encodingProfileId = encodingProfileId;
 	}
 
-	public int getInputId()
+	public long getInputId()
 	{
 		return inputId;
 	}
 
-	public void setInputId(int inputId)
+	public void setInputId(long inputId)
 	{
 		this.inputId = inputId;
 	}
 
-	public int getOutputId()
+	public long getOutputId()
 	{
 		return outputId;
 	}
 
-	public void setOutputId(int outputId)
+	public void setOutputId(long outputId)
 	{
 		this.outputId = outputId;
 	}
@@ -223,6 +227,16 @@ public class EncodingJob implements Serializable
 	public void setReprocess(boolean reprocess)
 	{
 		this.reprocess = reprocess;
+	}
+
+	public List<SubtitleInfo> getSubtitleList()
+	{
+		return subtitleList;
+	}
+
+	public void setSubtitleList(List<SubtitleInfo> subtitleList)
+	{
+		this.subtitleList = subtitleList;
 	}
 
 	@Override

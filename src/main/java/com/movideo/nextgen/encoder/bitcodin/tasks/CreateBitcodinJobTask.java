@@ -42,7 +42,7 @@ public class CreateBitcodinJobTask extends Task
 		super(queueManager, jobString);
 	}
 
-	private JSONObject constructManifestObject(String type, int mediaId, JSONObject createJobResponse) throws JSONException
+	private JSONObject constructManifestObject(String type, int mediaId, JSONObject createJobResponse, boolean hasSubs) throws JSONException
 	{
 
 		JSONObject manifest = new JSONObject();
@@ -70,7 +70,15 @@ public class CreateBitcodinJobTask extends Task
 			outputPathBuffer.append(Constants.AZURE_OUTPUT_BLOB_MEDIA_PATH_PREFIX).append("/").append(mediaId).append("/").append(bitcodinFolderKey).append("/");
 		}
 
-		outputPathBuffer.append(createJobResponse.getInt("jobId") + "." + type);
+		if(hasSubs)
+		{
+			outputPathBuffer.append(createJobResponse.getInt("jobId") + "_subs." + type);
+		}
+		else
+		{
+			outputPathBuffer.append(createJobResponse.getInt("jobId") + "." + type);
+		}
+
 		log.debug("Manifest path is: " + outputPathBuffer.toString());
 
 		manifest.put("url", outputPathBuffer.toString());
@@ -89,15 +97,21 @@ public class CreateBitcodinJobTask extends Task
 		encodeSummary.put("mediaConfigurations", createJobResponse.getJSONObject("input").getJSONArray("mediaConfigurations"));
 		JSONArray manifests = new JSONArray();
 		JSONObject manifestUrls = createJobResponse.getJSONObject("manifestUrls");
+		boolean hasSubs = false;
+
+		if(job.getSubtitleList() != null)
+		{
+			hasSubs = true;
+		}
 
 		if(manifestUrls.has("mpdUrl"))
 		{
-			manifests.add(constructManifestObject("mpd", job.getMediaId(), createJobResponse));
+			manifests.add(constructManifestObject("mpd", job.getMediaId(), createJobResponse, hasSubs));
 		}
 
 		if(manifestUrls.has("m3u8Url"))
 		{
-			manifests.add(constructManifestObject("m3u8", job.getMediaId(), createJobResponse));
+			manifests.add(constructManifestObject("m3u8", job.getMediaId(), createJobResponse, hasSubs));
 		}
 		encodeSummary.put("manifests", manifests);
 		encodeSummary.put("streamProtected", job.isProtectionRequired());
@@ -134,8 +148,6 @@ public class CreateBitcodinJobTask extends Task
 			{
 				log.error("Could not extract bitcodin job from job string", e);
 				queueManager.moveQueues(workingListName, errorListName, jobString, null);
-				// Util.moveJobToNextList(redisPool, workingListName,
-				// errorListName, jobString, jobString);
 				return;
 			}
 
@@ -148,6 +160,7 @@ public class CreateBitcodinJobTask extends Task
 			// first entry
 			// which needs to be subsquently updated at each point.
 			job.setStatus(Constants.STATUS_RECEIVED);
+			boolean hasSubs = (job.getSubtitleList() != null) ? true : false;
 
 			if(job.isProtectionRequired())
 			{
@@ -167,8 +180,6 @@ public class CreateBitcodinJobTask extends Task
 					log.error("An error occured while fetching DRM configuration", e);
 					job.setStatus(Constants.STATUS_JOB_FAILED);
 					queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-					// Util.moveJobToNextList(redisPool, workingListName,
-					// errorListName, jobString, job.toString());
 
 					return;
 				}
@@ -180,14 +191,25 @@ public class CreateBitcodinJobTask extends Task
 				response = BitcodinProxy.createJob(inputConfig, outputConfig, job, drmConfigMap);
 				log.debug("CreateBitcodinJob : run() -> Got back the response from Bitcodin");
 				job.setStatus(Constants.STATUS_JOB_SUBMITTED);
+				if(hasSubs)
+				{
+					try
+					{
+						job.setOutputId(response.getLong("outputId"));
+					}
+					catch(JSONException e)
+					{
+						log.error("Unable to get outputId for processing subtitles", e);
+						job.setStatus(Constants.STATUS_JOB_FAILED);
+						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+					}
+				}
 			}
 			catch(BitcodinException e)
 			{
 				log.error("Job creation failed", e);
 				job.setStatus(Constants.STATUS_JOB_FAILED);
 				queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-				// Util.moveJobToNextList(redisPool, workingListName,
-				// errorListName, jobString, job.toString());
 
 				return;
 			}
@@ -207,8 +229,6 @@ public class CreateBitcodinJobTask extends Task
 				log.error("An error occured while fetching jobId from the response", e);
 				job.setStatus(Constants.STATUS_JOB_FAILED);
 				queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-				// Util.moveJobToNextList(redisPool, workingListName,
-				// errorListName, jobString, job.toString());
 				return;
 			}
 
@@ -224,8 +244,6 @@ public class CreateBitcodinJobTask extends Task
 				return;
 			}
 
-			// Util.moveJobToNextList(redisPool, workingListName,
-			// successListName, jobString, job.toString());
 			queueManager.moveQueues(workingListName, successListName, jobString, job.toString());
 		}
 		catch(QueueException e)

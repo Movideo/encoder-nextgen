@@ -66,9 +66,9 @@ public class Encoder
 		initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(), TimeUnit.MINUTES,
 				TaskType.CREATE_ENCONDING_JOB.name(), Constants.REDIS_INPUT_LIST, taskFactory, queueManager);
 
-		//		log.debug("About to start threadpool manager for Bitcodin job poller");
-		//		initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(), TimeUnit.MINUTES,
-		//				TaskType.POLL_ENCODING_JOB_STATUS.name(), Constants.REDIS_PENDING_LIST, taskFactory, queueManager);
+		log.debug("About to start threadpool manager for Bitcodin job poller");
+		initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(), TimeUnit.MINUTES,
+				TaskType.POLL_ENCODING_JOB_STATUS.name(), Constants.REDIS_PENDING_LIST, taskFactory, queueManager);
 
 		//		addSampleJobs(redisPool, appConfig);
 

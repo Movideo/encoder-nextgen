@@ -2,7 +2,6 @@ package com.movideo.nextgen.encoder.bitcodin.tasks;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.google.gson.JsonSyntaxException;
@@ -17,29 +16,31 @@ import com.movideo.nextgen.encoder.dao.EncodeDAO;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 
 /**
- * Polls Bitcodin for the status of the id specified in the input If the status
- * is completed or errored, moves it to the appropriate list If not, replaces
- * the message back in the list for round-robin polling
+ * Polls Bitcodin for the status of the id specified in the input If the status is completed or errored, moves it to the appropriate list If not,
+ * replaces the message back in the list for round-robin polling
  *
  * @author yramasundaram
  */
-public class PollBitcodinJobStatusTask extends Task {
+public class PollBitcodinJobStatusTask extends Task
+{
 
-    private static final Logger log = LogManager.getLogger();
+	private static final Logger log = LogManager.getLogger();
 
-    private String pendingListName = Constants.REDIS_PENDING_LIST,
-	    workingListName = Constants.REDIS_PENDING_WORKING_LIST, errorListName = Constants.REDIS_POLL_ERROR_LIST,
-	    successListName = Constants.REDIS_FINISHED_LIST;
+	private String pendingListName = Constants.REDIS_PENDING_LIST,
+		workingListName = Constants.REDIS_PENDING_WORKING_LIST, errorListName = Constants.REDIS_POLL_ERROR_LIST,
+		successListName = Constants.REDIS_FINISHED_LIST;
 
-    private EncodeDAO encodeDAO;
+	private EncodeDAO encodeDAO;
 
-    public PollBitcodinJobStatusTask(QueueManager manager, EncodeDAO encodeDAO, String jobString) {
+	public PollBitcodinJobStatusTask(QueueManager manager, EncodeDAO encodeDAO, String jobString)
+	{
 	super(manager, jobString);
 	this.encodeDAO = encodeDAO;
-    }
+	}
 
-    @Override
-    public void run() {
+	@Override
+	public void run()
+	{
 
 	log.debug("PollBitcodinJobStatus : run() -> Executing poller");
 
@@ -48,64 +49,71 @@ public class PollBitcodinJobStatusTask extends Task {
 	EncodingJob job;
 
 	log.debug("PollBitcodinJobStatus : run() -> Job string is: " + jobString);
-	try {
+	try
+	{
 
-	    try {
+		try
+		{
 		job = Util.getBitcodinJobFromJSON(jobString);
-	    } catch (JsonSyntaxException e) {
+		}
+		catch(JsonSyntaxException e)
+		{
 		job = new EncodingJob();
 		job.setOriginalJobstring(jobString);
-		log.error("Could not extract bitcodin job from JSON Object", e);
+		log.error("Could not extract bitcodin job from job string", e);
+		job.setErrorType(Constants.ERROR_JSON_PARSING);
 		queueManager.moveQueues(workingListName, errorListName, jobString, job.getOriginalJobstring());
-		// Util.moveJobToNextList(redisPool, workingListName,
-		// errorListName, jobString, jobString);
 		return;
-	    }
+		}
 
-	    log.debug("PollBitcodinJobStatus : run() -> Now polling Job id: " + job.getEncodingJobId());
+		log.info("PollBitcodinJobStatus : run() -> Now polling Job id: " + job.getEncodingJobId());
 
-	    try {
+		try
+		{
 		response = BitcodinProxy.getJobStatus(job.getEncodingJobId());
 		status = response.getString("status");
-		log.debug("PollBitcodinJobStatus : run() -> Response Status is: " + status);
+		log.info("PollBitcodinJobStatus : run() -> Response Status is: " + status);
 
-	    } catch (BitcodinException | JSONException e) {
+		}
+		catch(BitcodinException e)
+		{
 		job.setRetry(true);
-		log.error("Encoding failed for the job id " + job.getEncodingJobId(), e);
-		job.setErrorType(Constants.STATUS_JOB_FAILED);
+		log.error("Polling failed for the job id " + job.getEncodingJobId(), e);
+		job.setStatus(Constants.STATUS_JOB_FAILED);
+		job.setErrorType(Constants.ERROR_POLLING_FAILED);
 		queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-		// Util.moveJobToNextList(redisPool, workingListName,
-		// errorListName, jobString, job.toString());
 		return;
-	    }
-
-	    if (status != null && (status.equalsIgnoreCase("Created") || status.equalsIgnoreCase("Enqueued")
-		    || status.equalsIgnoreCase("In Progress"))) {
-		// Put back in the pending list to check back later
+		}
+		if(status != null && (status.equalsIgnoreCase(BitCodinStatusType.CREATED.getName()) || status.equalsIgnoreCase(BitCodinStatusType.ENQUEUED.getName())
+			|| status.equalsIgnoreCase(BitCodinStatusType.INPROGRESS.getName())))
+		{
+		// Putting back in the pending list to check back later
 		queueManager.moveQueues(workingListName, pendingListName, jobString, job.toString());
-		// Util.moveJobToNextList(redisPool, workingListName,
-		// pendingListName, jobString, job.toString());
-
-	    } else if (status != null && status.equalsIgnoreCase("Finished")) {
+		}
+		else if(status != null && status.equalsIgnoreCase(BitCodinStatusType.FINISHED.getName()))
+		{
 		queueManager.moveQueues(workingListName, successListName, jobString, job.toString());
 		log.debug("Encode summary for this job is: " + job.getEncodeSummary());
-		encodeDAO.storeEncodeSummary(job.getEncodeSummary());
-		// Util.moveJobToNextList(redisPool, workingListName,
-		// successListName, jobString, job.toString());
-
-	    } else {
+		if(job.getEncodeSummary() != null)
+			encodeDAO.storeEncodeSummary(job.getEncodeSummary());
+		else
+			log.error("Encode Summary cannot store into DB :: Encode Summary :: " + job.getEncodeSummary());
+		}
+		else
+		{
 		log.error("Job failed");
 		job.setStatus(Constants.STATUS_JOB_FAILED);
+		job.setErrorType(Constants.ERROR_JOB_STATUS_UNKNOWN);
 		queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-		// Util.moveJobToNextList(redisPool, workingListName,
-		// errorListName, jobString, job.toString());
 		return;
-	    }
-	} catch (QueueException e) {
-	    log.error("PollBitcodinJob :: Queue Exception when trying to process job " + e.getMessage());
-	    return;
+		}
+	}
+	catch(QueueException e)
+	{
+		log.error("PollBitcodinJob :: Queue Exception when trying to process job " + e.getMessage());
+		return;
 	}
 
-    }
+	}
 
 }

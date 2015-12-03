@@ -22,20 +22,24 @@ import redis.clients.jedis.JedisPool;
 /**
  * Created by rranawaka on 26/11/2015.
  */
-public class SampleGenerator {
-    private static final Logger log = LogManager.getLogger();
+public class SampleGenerator
+{
+	private static final Logger log = LogManager.getLogger();
 
-    public static void addSampleRequest(JedisPool redisPool, AppConfig appConfig) {
+	public static void addSampleRequest(JedisPool redisPool, AppConfig appConfig)
+	{
 	Jedis jedis = redisPool.getResource();
 	String job = createSampleEncodingRequest();
-	for (int i = 0; i < appConfig.getParalleljobCountforTest(); i++) {
-	    jedis.lpush(Constants.REDIS_ENCODE_REQUEST_LIST, job);
+	for(int i = 0; i < appConfig.getParalleljobCountforTest(); i++)
+	{
+		jedis.lpush(Constants.REDIS_ENCODE_REQUEST_LIST, job);
 	}
 
 	jedis.close();
-    }
+	}
 
-    public static String createSampleEncodingRequest() {
+	public static String createSampleEncodingRequest()
+	{
 	EncodeRequest request = new EncodeRequest();
 	request.setClientId(524);
 	request.setMediaId(848044);
@@ -81,19 +85,22 @@ public class SampleGenerator {
 	String jobJson = new Gson().toJson(request);
 
 	return jobJson;
-    }
+	}
 
-    public static void addSampleJobs(JedisPool redisPool, AppConfig appConfig) {
+	public static void addSampleJobs(JedisPool redisPool, AppConfig appConfig)
+	{
 	Jedis jedis = redisPool.getResource();
 	EncodingJob job = createSampleJobFromConfig(appConfig);
-	for (int i = 0; i < appConfig.getParalleljobCountforTest(); i++) {
-	    jedis.lpush(Constants.REDIS_INPUT_LIST, job.toString());
+	for(int i = 0; i < appConfig.getParalleljobCountforTest(); i++)
+	{
+		jedis.lpush(Constants.REDIS_INPUT_LIST, job.toString());
 	}
 
 	jedis.close();
-    }
+	}
 
-    public static EncodingJob createSampleJobFromConfig(AppConfig appConfig) {
+	public static EncodingJob createSampleJobFromConfig(AppConfig appConfig)
+	{
 
 	String[] manifestTypes = { "mpd" };
 	EncodingJob job = new EncodingJob();
@@ -109,13 +116,12 @@ public class SampleGenerator {
 	job.setSpeed(appConfig.getSampleJobSpeed());
 	job.setInputFileName(appConfig.getSampleJobInputFile());
 	job.setDrmType(Constants.CENC_ENCRYPTION_TYPE);
-	job.setProductId("1235-5678-9058");
+	job.setProductId("1235-5678-1534");
 	job.setVariant("HD");
 	job.setInputFileUrl(getMediaUrlFromSegments(job.getClientId(), job.getMediaId(), job.getInputFileName()));
 
 	/*
-	 * if need to create new output, create it, else use the default one
-	 * given
+	 * if need to create new output, create it, else use the default one given
 	 */
 	// if (createNewOutput) {
 	//
@@ -138,10 +144,10 @@ public class SampleGenerator {
 	log.debug("Sample Job: \n" + job);
 
 	return job;
-    }
+	}
 
-    private static String getMediaUrlFromSegments(int clientId, int mediaId, String fileName) {
-	return Constants.AZURE_INPUT_URL_PREFIX + Constants.AZURE_INPUT_BLOB_CONTAINER_PREFIX + clientId + "/"
-		+ Constants.AZURE_INPUT_BLOB_MEDIA_PATH_PREFIX + "/" + mediaId + "/" + fileName;
-    }
+	private static String getMediaUrlFromSegments(int clientId, int mediaId, String fileName)
+	{
+	return Constants.AZURE_INPUT_URL_PREFIX + Constants.AZURE_INPUT_BLOB_CONTAINER_PREFIX + clientId + "/" + Constants.AZURE_INPUT_BLOB_MEDIA_PATH_PREFIX + "/" + mediaId + "/" + fileName;
+	}
 }

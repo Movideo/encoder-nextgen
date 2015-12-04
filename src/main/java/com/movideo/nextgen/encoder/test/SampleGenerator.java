@@ -1,17 +1,23 @@
 package com.movideo.nextgen.encoder.test;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.gson.Gson;
-import com.movideo.nextgen.common.encoder.models.*;
+import com.movideo.nextgen.common.encoder.models.AudioConfig;
+import com.movideo.nextgen.common.encoder.models.EncodeInfo;
+import com.movideo.nextgen.common.encoder.models.EncodeRequest;
+import com.movideo.nextgen.common.encoder.models.StreamInfo;
+import com.movideo.nextgen.common.encoder.models.VideoConfig;
 import com.movideo.nextgen.encoder.config.AppConfig;
 import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.models.EncodingJob;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Created by rranawaka on 26/11/2015.
@@ -20,10 +26,11 @@ public class SampleGenerator
 {
 	private static final Logger log = LogManager.getLogger();
 
-	public static void addSampleRequest(JedisPool redisPool, AppConfig appConfig) {
+	public static void addSampleRequest(JedisPool redisPool, AppConfig appConfig)
+	{
 		Jedis jedis = redisPool.getResource();
 		String job = createSampleEncodingRequest();
-		for (int i = 0; i < appConfig.getParalleljobCountforTest(); i++)
+		for(int i = 0; i < appConfig.getParalleljobCountforTest(); i++)
 		{
 			jedis.lpush(Constants.REDIS_ENCODE_REQUEST_LIST, job);
 		}
@@ -31,13 +38,14 @@ public class SampleGenerator
 		jedis.close();
 	}
 
-	public static String createSampleEncodingRequest() {
+	public static String createSampleEncodingRequest()
+	{
 		EncodeRequest request = new EncodeRequest();
 		request.setClientId(524);
-		request.setMediaId(848044);
-		request.setProductId("1234567890");
+		request.setMediaId(848095);
+		request.setProductId("999999999");
 		request.setVariant("HD");
-		request.setInputFilename("vid.mp4");
+		request.setInputFilename("movie.mp4");
 		request.setSpeed("premium");
 
 		VideoConfig videoConfig = new VideoConfig();
@@ -61,12 +69,13 @@ public class SampleGenerator
 		manifestTypes.add("mpd");
 
 		StreamInfo streamInfo = new StreamInfo();
-		streamInfo.setProtectionRequired(false);
+		streamInfo.setProtectionRequired(true);
 		streamInfo.setManifestType(manifestTypes);
 		streamInfo.setAudioConfig(audioConfList);
 		streamInfo.setVideoConfig(videoConfList);
 
 		EncodeInfo encodeInfo = new EncodeInfo();
+		encodeInfo.setReprocessing(true);
 		encodeInfo.setEncodingProfileId(37944);
 		encodeInfo.setStreamInfo(streamInfo);
 
@@ -79,10 +88,11 @@ public class SampleGenerator
 		return jobJson;
 	}
 
-	public static void addSampleJobs(JedisPool redisPool, AppConfig appConfig) {
+	public static void addSampleJobs(JedisPool redisPool, AppConfig appConfig)
+	{
 		Jedis jedis = redisPool.getResource();
 		EncodingJob job = createSampleJobFromConfig(appConfig);
-		for (int i = 0; i < appConfig.getParalleljobCountforTest(); i++)
+		for(int i = 0; i < appConfig.getParalleljobCountforTest(); i++)
 		{
 			jedis.lpush(Constants.REDIS_INPUT_LIST, job.toString());
 		}
@@ -111,10 +121,10 @@ public class SampleGenerator
 		job.setVariant("HD");
 		job.setInputFileUrl(getMediaUrlFromSegments(job.getClientId(), job.getMediaId(), job.getInputFileName()));
 
-	/*
-	 * if need to create new output, create it, else use the default one
-	 * given
-	 */
+		/*
+		 * if need to create new output, create it, else use the default one
+		 * given
+		 */
 		//	if (createNewOutput) {
 		//
 		//	    int outputId = BitcodinProxy.preCreateOutputfromConfig(appConfig.getEncodedOutputStorageType(),
@@ -134,7 +144,6 @@ public class SampleGenerator
 
 		return job;
 	}
-
 
 	private static String getMediaUrlFromSegments(int clientId, int mediaId, String fileName)
 	{

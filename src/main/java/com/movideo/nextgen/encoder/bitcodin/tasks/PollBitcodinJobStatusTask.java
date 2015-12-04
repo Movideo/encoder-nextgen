@@ -1,5 +1,6 @@
 package com.movideo.nextgen.encoder.bitcodin.tasks;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -17,7 +18,9 @@ import com.movideo.nextgen.encoder.bitcodin.BitcodinProxy;
 import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.dao.EncodeDAO;
+import com.movideo.nextgen.encoder.models.EncodeSummary;
 import com.movideo.nextgen.encoder.models.EncodingJob;
+import com.movideo.nextgen.encoder.models.Manifest;
 
 /**
  * Polls Bitcodin for the status of the id specified in the input If the status is completed or errored, moves it to the appropriate list If not,
@@ -96,18 +99,26 @@ public class PollBitcodinJobStatusTask extends Task
 				if(subtitles != null)
 				{
 					long jobId = job.getEncodingJobId();
-					String[] manifests = job.getManifestTypes();
-					for(String manifestType : manifests)
+					String[] manifestTypes = job.getManifestTypes();
+					List<Manifest> manifestUrlList = new ArrayList<>();
+
+					for(String manifestType : manifestTypes)
 					{
 						//TODO: Find a way to generalize processing of other subtitle types
 						try
 						{
-							response = BitcodinProxy.createManifestWithSubs(jobId, subtitles, jobId + "_subs", manifestType, "vtt");
+							String outputManifestName = jobId + "_subs." + manifestType;
+							response = BitcodinProxy.createManifestWithSubs(jobId, subtitles, outputManifestName, manifestType, "vtt");
+							log.debug("Response from create subtitle call: " + response);
 							String urlKey = manifestType + "Url";
 							if(response.has(urlKey))
 							{
-								log.debug("Manifest Url is: " + response.getString(urlKey));
-								BitcodinProxy.transferToAzure(jobId, job.getOutputId());
+								Manifest manifest = new Manifest();
+								manifest.setType(manifestType);
+								response = BitcodinProxy.transferToAzure(jobId, job.getOutputId());
+								String url = response.getString("outputUrl") + "/" + outputManifestName;
+								manifest.setUrl(url);
+								manifestUrlList.add(manifest);
 							}
 						}
 						catch(BitcodinException | JSONException e)
@@ -118,6 +129,10 @@ public class PollBitcodinJobStatusTask extends Task
 							return;
 						}
 					}
+					EncodeSummary encodeSummary = job.getEncodeSummary();
+					encodeSummary.setManifests(manifestUrlList.toArray(new Manifest[manifestUrlList.size()]));
+					log.info("Encode Summary is: " + encodeSummary);
+					job.setEncodeSummary(encodeSummary);
 					//TODO: Poll Bitcodin to check transfer status
 
 				}
@@ -140,7 +155,5 @@ public class PollBitcodinJobStatusTask extends Task
 			log.error("PollBitcodinJob :: Queue Exception when trying to process job " + e.getMessage());
 			return;
 		}
-
 	}
-
 }

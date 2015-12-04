@@ -10,7 +10,9 @@ package com.movideo.nextgen.encoder.models;
  */
 
 import org.ektorp.support.CouchDbDocument;
+import org.json.JSONObject;
 
+@SuppressWarnings("serial")
 public class EncodeSummary extends CouchDbDocument
 {
 	private Manifest[] manifests;
@@ -95,6 +97,12 @@ public class EncodeSummary extends CouchDbDocument
 	public void setStreamProtected(boolean streamProtected)
 	{
 		this.streamProtected = streamProtected;
+	}
+
+	@Override
+	public String toString()
+	{
+		return (new JSONObject(this)).toString();
 	}
 
 }

@@ -11,6 +11,7 @@ import com.movideo.nextgen.common.encoder.models.AudioConfig;
 import com.movideo.nextgen.common.encoder.models.EncodeInfo;
 import com.movideo.nextgen.common.encoder.models.EncodeRequest;
 import com.movideo.nextgen.common.encoder.models.StreamInfo;
+import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
 import com.movideo.nextgen.common.encoder.models.VideoConfig;
 import com.movideo.nextgen.encoder.config.AppConfig;
 import com.movideo.nextgen.encoder.config.Constants;
@@ -48,6 +49,22 @@ public class SampleGenerator
 		request.setInputFilename("movie.mp4");
 		request.setSpeed("premium");
 
+		List<SubtitleInfo> subList = new ArrayList<>();
+
+		SubtitleInfo subtitleEn = new SubtitleInfo();
+		subtitleEn.setLangLong("English");
+		subtitleEn.setLangShort("en");
+		subtitleEn.setUrl("track_en.vtt");
+		subList.add(subtitleEn);
+
+		SubtitleInfo subtitleVi = new SubtitleInfo();
+		subtitleVi.setLangLong("Vietnamese");
+		subtitleVi.setLangShort("vi");
+		subtitleVi.setUrl("track_vi.vtt");
+		subList.add(subtitleVi);
+
+		request.setSubtitleInfo(subList);
+
 		VideoConfig videoConfig = new VideoConfig();
 		videoConfig.setBitRate(5000000);
 		videoConfig.setCodec("h264");
@@ -65,7 +82,7 @@ public class SampleGenerator
 		audioConfList.add(audioConfig);
 
 		List<String> manifestTypes = new ArrayList<String>();
-		manifestTypes.add("m3u8");
+		//		manifestTypes.add("m3u8");
 		manifestTypes.add("mpd");
 
 		StreamInfo streamInfo = new StreamInfo();

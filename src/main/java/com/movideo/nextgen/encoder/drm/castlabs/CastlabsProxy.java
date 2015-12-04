@@ -112,22 +112,25 @@ public class CastlabsProxy
 				ingestKeysObject = new JSONObject();
 
 				log.debug("Current manifest type: " + manifestType);
+
+				if(job.isReprocess())
+				{
+					//TODO: Handle FPS
+					String url = Constants.CASTLABS_CENC_KEY_DELETE_URL;
+
+					url = url.replace("[assetId]", job.getProductId()).replace("[variantId]", job.getVariant());
+					url = url + "?ticket="
+							+ getCasToken(url);
+					log.debug("URL for deleting previously ingested CENC Key: " + url);
+					HttpResponse response = CastlabsHttpHelper.getRawHttpResponse(url, null, "delete",
+							getFrontEndHeaders());
+					log.info("Attempted to delete key for asset: " + job.getProductId() + ", variant: " + job.getVariant() + " and the response code is: " + response.getStatusLine().getStatusCode());
+					// Not checking specific errors here to allow just-in-case re-process requests
+
+				}
+
 				if(manifestType.equalsIgnoreCase(Constants.MPEG_DASH_MANIFEST_TYPE))
 				{
-					if(job.isReprocess())
-					{
-						//TODO: Key Deletion logic
-						String url = Constants.CASTLABS_CENC_KEY_DELETE_URL;
-
-						url = url.replace("[assetId]", job.getProductId()).replace("[variantId]", job.getVariant());
-						url = url + "?ticket="
-								+ getCasToken(url);
-						log.debug("URL for deleting previously ingested CENC Key: " + url);
-						CastlabsHttpHelper.makeHttpCall(url, null, "delete",
-								getFrontEndHeaders());
-						// Not checking specific errors here to allow just-in-case re-process requests
-
-					}
 					ingestKeysObject.put("keyId", keysMap.get("kidBase64"));
 					asset.put("type", "CENC");
 					drmInfo.setLicenseUrl(Constants.CENC_LA_URL);
@@ -168,50 +171,16 @@ public class CastlabsProxy
 				JSONObject responseJson = CastlabsHttpHelper.makeHttpCall(url, payload.toString(), "post",
 						getFrontEndHeaders());
 
+				JSONArray keys = responseJson.getJSONArray("assets").getJSONObject(0).getJSONArray("keys");
+
+				checkErrors(keys);
+
 				if(manifestType.equalsIgnoreCase(Constants.MPEG_DASH_MANIFEST_TYPE))
 				{
-
-					JSONArray keys = responseJson.getJSONArray("assets").getJSONObject(0).getJSONArray("keys");
-					if(keys.getJSONObject(0).has("errors"))
-					{
-						JSONArray errors = keys.getJSONObject(0).getJSONArray("errors");
-						StringBuffer errorBuffer = new StringBuffer();
-						int numErrors = errors.length();
-						for(int counter = 0; counter < numErrors; counter++)
-						{
-							errorBuffer.append(errors.getString(counter));
-							if(counter != numErrors - 1)
-							{
-								errorBuffer.append(", ");
-							}
-						}
-						throw new CastlabsException(Constants.STATUS_CODE_BAD_REQUEST, errorBuffer.toString(), null);
-
-					}
-					// TODO: Is there a better way to parse this response?
-					JSONObject systemId = keys
-							.getJSONObject(0).getJSONObject("cencResponse").getJSONObject("systemId");
-
-					@SuppressWarnings("unchecked")
-					Iterator<String> iterator = systemId.keys();
-
-					while(iterator.hasNext())
-					{
-						JSONObject currentObject = systemId.getJSONObject(iterator.next());
-						if(currentObject.getString("name").equals("Widevine"))
-						{
-							drmInfo.setPssh(currentObject.getString("psshBoxContent"));
-							drmInfoMap.put(manifestType, drmInfo);
-							break;
-						}
-						if(drmInfo.getPssh() == null)
-						{
-							// Type is CENC, but no PSSH found in response
-							throw new CastlabsException(Constants.STATUS_CODE_SERVER_ERROR, "Unable to find PSSH info in response", null);
-
-						}
-					}
-
+					String pssh = getPsshBoxFromResponse(keys);
+					log.debug("PSSH from Castlabs is: " + pssh);
+					drmInfo.setPssh(pssh);
+					drmInfoMap.put(manifestType, drmInfo);
 				}
 				else
 				{
@@ -248,6 +217,53 @@ public class CastlabsProxy
 
 	}
 
+	private static String getPsshBoxFromResponse(JSONArray keys) throws JSONException, CastlabsException
+	{
+		log.debug("Keys: " + keys);
+		// TODO: Is there a better way to parse this response?
+		JSONObject systemId = keys
+				.getJSONObject(0).getJSONObject("cencResponse").getJSONObject("systemId");
+
+		log.debug("systemId: " + systemId);
+
+		@SuppressWarnings("unchecked")
+		Iterator<String> iterator = systemId.keys();
+
+		while(iterator.hasNext())
+		{
+			JSONObject currentObject = systemId.getJSONObject(iterator.next());
+			log.debug("Current Object: " + currentObject);
+			if(currentObject.getString("name").equals("Widevine"))
+			{
+				log.debug("Found PSSH: " + currentObject.getString("psshBoxContent"));
+				return currentObject.getString("psshBoxContent");
+			}
+		}
+		throw new CastlabsException(Constants.STATUS_CODE_SERVER_ERROR, "Unable to find PSSH info in response", null);
+
+	}
+
+	private static void checkErrors(JSONArray keys) throws CastlabsException, JSONException
+	{
+		if(keys.getJSONObject(0).has("errors"))
+		{
+			JSONArray errors = keys.getJSONObject(0).getJSONArray("errors");
+			StringBuffer errorBuffer = new StringBuffer();
+			int numErrors = errors.length();
+			for(int counter = 0; counter < numErrors; counter++)
+			{
+				errorBuffer.append(errors.getString(counter));
+				if(counter != numErrors - 1)
+				{
+					errorBuffer.append(", ");
+				}
+			}
+			throw new CastlabsException(Constants.STATUS_CODE_BAD_REQUEST, errorBuffer.toString(), null);
+
+		}
+
+	}
+
 	//	public static void main(String[] args) throws CastlabsException
 	//	{
 	//		Map<String, String> keyMap = new HashMap<>();
@@ -265,5 +281,13 @@ public class CastlabsProxy
 	//
 	//		ingestKeys(keyMap, job);
 	//	}
+
+	public static void main(String[] args) throws JSONException, CastlabsException
+	{
+		JSONObject responseJson = new JSONObject("{\"assets\":[{\"assetId\":\"999999999\",\"variantId\":\"HD\",\"keys\":[{\"streamType\":\"VIDEO_AUDIO\",\"keyId\":\"3P512rbc/HkbKhbC1HWsFw==\",\"cencResponse\":{\"systemId\":{\"edef8ba9-79d6-4ace-a3c8-27dcd51d21ed\":{\"name\":\"Widevine\",\"psshBoxContent\":\"CAESENz+ddq23Px5GyoWwtR1rBcaCGNhc3RsYWJzIhgzUDUxMnJiYy9Ia2JLaGJDMUhXc0Z3PT0yB2RlZmF1bHQ=\"},\"9A04F079-9840-4286-AB92-E65BE0885F95\":{\"name\":\"PlayReady\",\"xmlFragment\":\"<mspr:pro>QAMAAAEAAQA2AzwAVwBSAE0ASABFAEEARABFAFIAIAB4AG0AbABuAHMAPQAiAGgAdAB0AHAAOgAvAC8AcwBjAGgAZQBtAGEAcwAuAG0AaQBjAHIAbwBzAG8AZgB0AC4AYwBvAG0ALwBEAFIATQAvADIAMAAwADcALwAwADMALwBQAGwAYQB5AFIAZQBhAGQAeQBIAGUAYQBkAGUAcgAiACAAdgBlAHIAcwBpAG8AbgA9ACIANAAuADAALgAwAC4AMAAiAD4APABEAEEAVABBAD4APABQAFIATwBUAEUAQwBUAEkATgBGAE8APgA8AEsARQBZAEwARQBOAD4AMQA2ADwALwBLAEUAWQBMAEUATgA+ADwAQQBMAEcASQBEAD4AQQBFAFMAQwBUAFIAPAAvAEEATABHAEkARAA+ADwALwBQAFIATwBUAEUAQwBUAEkATgBGAE8APgA8AEsASQBEAD4AMgBuAFgAKwAzAE4AeQAyAGUAZgB3AGIASwBoAGIAQwAxAEgAVwBzAEYAdwA9AD0APAAvAEsASQBEAD4APABMAEEAXwBVAFIATAA+AGgAdAB0AHAAcwA6AC8ALwBsAGkAYwAuAHMAdABhAGcAaQBuAGcALgBkAHIAbQB0AG8AZABhAHkALgBjAG8AbQAvAGwAaQBjAGUAbgBzAGUALQBwAHIAbwB4AHkALQBoAGUAYQBkAGUAcgBhAHUAdABoAC8AZAByAG0AdABvAGQAYQB5AC8AUgBpAGcAaAB0AHMATQBhAG4AYQBnAGUAcgAuAGEAcwBtAHgAPAAvAEwAQQBfAFUAUgBMAD4APABMAFUASQBfAFUAUgBMAD4AaAB0AHQAcABzADoALwAvAHcAdwB3AC4AbQBpAGMAcgBvAHMAbwBmAHQALgBjAG8AbQAvAHAAbABhAHkAcgBlAGEAZAB5AC8APAAvAEwAVQBJAF8AVQBSAEwAPgA8AEMASABFAEMASwBTAFUATQA+AG0ARQBKAEUAdABoAHYASQBJADcAdwA9ADwALwBDAEgARQBDAEsAUwBVAE0APgA8AC8ARABBAFQAQQA+ADwALwBXAFIATQBIAEUAQQBEAEUAUgA+AA==</mspr:pro>\",\"psshBoxContent\":\"QAMAAAEAAQA2AzwAVwBSAE0ASABFAEEARABFAFIAIAB4AG0AbABuAHMAPQAiAGgAdAB0AHAAOgAvAC8AcwBjAGgAZQBtAGEAcwAuAG0AaQBjAHIAbwBzAG8AZgB0AC4AYwBvAG0ALwBEAFIATQAvADIAMAAwADcALwAwADMALwBQAGwAYQB5AFIAZQBhAGQAeQBIAGUAYQBkAGUAcgAiACAAdgBlAHIAcwBpAG8AbgA9ACIANAAuADAALgAwAC4AMAAiAD4APABEAEEAVABBAD4APABQAFIATwBUAEUAQwBUAEkATgBGAE8APgA8AEsARQBZAEwARQBOAD4AMQA2ADwALwBLAEUAWQBMAEUATgA+ADwAQQBMAEcASQBEAD4AQQBFAFMAQwBUAFIAPAAvAEEATABHAEkARAA+ADwALwBQAFIATwBUAEUAQwBUAEkATgBGAE8APgA8AEsASQBEAD4AMgBuAFgAKwAzAE4AeQAyAGUAZgB3AGIASwBoAGIAQwAxAEgAVwBzAEYAdwA9AD0APAAvAEsASQBEAD4APABMAEEAXwBVAFIATAA+AGgAdAB0AHAAcwA6AC8ALwBsAGkAYwAuAHMAdABhAGcAaQBuAGcALgBkAHIAbQB0AG8AZABhAHkALgBjAG8AbQAvAGwAaQBjAGUAbgBzAGUALQBwAHIAbwB4AHkALQBoAGUAYQBkAGUAcgBhAHUAdABoAC8AZAByAG0AdABvAGQAYQB5AC8AUgBpAGcAaAB0AHMATQBhAG4AYQBnAGUAcgAuAGEAcwBtAHgAPAAvAEwAQQBfAFUAUgBMAD4APABMAFUASQBfAFUAUgBMAD4AaAB0AHQAcABzADoALwAvAHcAdwB3AC4AbQBpAGMAcgBvAHMAbwBmAHQALgBjAG8AbQAvAHAAbABhAHkAcgBlAGEAZAB5AC8APAAvAEwAVQBJAF8AVQBSAEwAPgA8AEMASABFAEMASwBTAFUATQA+AG0ARQBKAEUAdABoAHYASQBJADcAdwA9ADwALwBDAEgARQBDAEsAUwBVAE0APgA8AC8ARABBAFQAQQA+ADwALwBXAFIATQBIAEUAQQBEAEUAUgA+AA==\"}}}}]}]}");
+		JSONArray keys = responseJson.getJSONArray("assets").getJSONObject(0).getJSONArray("keys");
+		checkErrors(keys);
+		log.debug(getPsshBoxFromResponse(keys));
+	}
 
 }

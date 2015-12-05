@@ -42,49 +42,6 @@ public class CreateBitcodinJobTask extends Task
 		super(queueManager, jobString);
 	}
 
-	private JSONObject constructManifestObject(String type, int mediaId, JSONObject createJobResponse, boolean hasSubs) throws JSONException
-	{
-
-		JSONObject manifest = new JSONObject();
-		manifest.put("type", type);
-		// TODO: Hacky logic - understand why Bitcodin cannot send our urls back
-		StringBuffer outputPathBuffer = new StringBuffer(createJobResponse.getString("outputPath"));
-
-		//Media path prefix is already a part of the output path. We just need to add the manifest name
-		if(outputPathBuffer.indexOf(Constants.AZURE_OUTPUT_BLOB_MEDIA_PATH_PREFIX) > 0)
-		{
-
-			//Bitcodin usually doesn't append / at the end, but just in case
-			if(outputPathBuffer.charAt(outputPathBuffer.length() - 1) != '/')
-			{
-				outputPathBuffer.append("/");
-			}
-		}
-		//Media path prefix is missing. Need to add the prefix and the manifest name
-		else
-		{
-			//Example: https://movideoqaencoded1.blob.core.windows.net/encoded-524/38884_6c3c27870e46bc312b7114a7c80ba710
-			int lastSlash = outputPathBuffer.lastIndexOf("/");
-			String bitcodinFolderKey = outputPathBuffer.substring(lastSlash + 1);
-			outputPathBuffer.delete(lastSlash + 1, outputPathBuffer.length());
-			outputPathBuffer.append(Constants.AZURE_OUTPUT_BLOB_MEDIA_PATH_PREFIX).append("/").append(mediaId).append("/").append(bitcodinFolderKey).append("/");
-		}
-
-		if(hasSubs)
-		{
-			outputPathBuffer.append(createJobResponse.getInt("jobId") + "_subs." + type);
-		}
-		else
-		{
-			outputPathBuffer.append(createJobResponse.getInt("jobId") + "." + type);
-		}
-
-		log.debug("Manifest path is: " + outputPathBuffer.toString());
-
-		manifest.put("url", outputPathBuffer.toString());
-		return manifest;
-	}
-
 	private EncodeSummary getEncodeSummary(EncodingJob job, JSONObject createJobResponse) throws JSONException, IOException
 	{
 
@@ -96,23 +53,7 @@ public class CreateBitcodinJobTask extends Task
 		encodeSummary.put("variant", job.getVariant());
 		encodeSummary.put("mediaConfigurations", createJobResponse.getJSONObject("input").getJSONArray("mediaConfigurations"));
 		JSONArray manifests = new JSONArray();
-		JSONObject manifestUrls = createJobResponse.getJSONObject("manifestUrls");
-		boolean hasSubs = false;
 
-		if(job.getSubtitleList() != null)
-		{
-			hasSubs = true;
-		}
-
-		if(manifestUrls.has("mpdUrl"))
-		{
-			manifests.add(constructManifestObject("mpd", job.getMediaId(), createJobResponse, hasSubs));
-		}
-
-		if(manifestUrls.has("m3u8Url"))
-		{
-			manifests.add(constructManifestObject("m3u8", job.getMediaId(), createJobResponse, hasSubs));
-		}
 		encodeSummary.put("manifests", manifests);
 		encodeSummary.put("streamProtected", job.isProtectionRequired());
 
@@ -196,6 +137,7 @@ public class CreateBitcodinJobTask extends Task
 					try
 					{
 						job.setOutputId(response.getLong("outputId"));
+						log.debug("Job has subtitles and the outputid from response is: " + response.getLong("outputId"));
 					}
 					catch(JSONException e)
 					{

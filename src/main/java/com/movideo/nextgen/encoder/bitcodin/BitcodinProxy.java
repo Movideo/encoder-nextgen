@@ -38,7 +38,7 @@ public class BitcodinProxy
 	{
 		return BitcodinHttpHelper.makeHttpCall("job/" + jobId + "/status", null, "get");
 	}
-	
+
 	public static JSONObject getTransferStatus(long jobId) throws BitcodinException
 	{
 		return BitcodinHttpHelper.makeHttpCall("job/" + jobId + "/transfers", null, "get");
@@ -73,6 +73,7 @@ public class BitcodinProxy
 			throw new BitcodinException(Constants.STATUS_CODE_BAD_REQUEST, e.getMessage(), e);
 		}
 		String apiPath = "manifest/" + manifestType + "/" + subtitleType;
+		log.debug("Payload in create subtitle call: " + payload);
 		return BitcodinHttpHelper.makeHttpCall(apiPath, payload.toString(), "post");
 	}
 
@@ -85,11 +86,12 @@ public class BitcodinProxy
 		try
 		{
 			boolean hasSubs = (job.getSubtitleList() != null) ? true : false;
+			log.debug("Job hasSubs? " + hasSubs);
 			payload.put("encodingProfileId", job.getEncodingProfileId());
 			payload.put("manifestTypes", job.getManifestTypes());
 			payload.put("speed", job.getSpeed());
 			// TODO: Add support for audioMetadata
-			payload.put("outputId", job.getOutputId());
+			//			payload.put("outputId", job.getOutputId());
 			log.debug("About to create input");
 
 			JSONObject response = createAzureInput(inputConfig, job);
@@ -127,8 +129,9 @@ public class BitcodinProxy
 
 			log.info("BitcodinProxy: createJob() -> Payload sent to Bitcodin create Job API :" + payload.toString());
 			response = BitcodinHttpHelper.makeHttpCall("job/create", payload.toString(), "post");
-			if(!hasSubs)
+			if(hasSubs)
 			{
+				log.debug("Job has subs. Adding output id " + outputId + " to response!");
 				response.put("outputId", outputId);
 			}
 			log.debug("BitcodinProxy: createJob() -> Returning response from Bitcodin: \n" + response.toString());

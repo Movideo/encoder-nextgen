@@ -1,6 +1,7 @@
 package com.movideo.nextgen.encoder.dao;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -10,6 +11,11 @@ import org.apache.logging.log4j.Logger;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.movideo.nextgen.encoder.models.EncodeSummary;
+import org.ektorp.CouchDbInstance;
+import org.ektorp.http.HttpClient;
+import org.ektorp.http.StdHttpClient;
+import org.ektorp.impl.StdCouchDbConnector;
+import org.ektorp.impl.StdCouchDbInstance;
 
 public class EncodeDAO
 {
@@ -18,10 +24,13 @@ public class EncodeDAO
 
 	//	private CouchDbConnector db;
 	private static EncodeDAO instance;
+	private final String connectionString;
+	private final String databaseName;
 
 	public EncodeDAO(String connectionString, String databaseName)
 	{
-
+		this.connectionString = connectionString;
+		this.databaseName = databaseName;
 		//		HttpClient httpClient;
 		//		try
 		//		{
@@ -43,7 +52,24 @@ public class EncodeDAO
 
 	public void storeEncodeSummary(EncodeSummary encodeSummary)
 	{
-		//		db.create(encodeSummary);
+		HttpClient httpClient;
+		try
+		{
+			httpClient = new StdHttpClient.Builder()
+					.url(connectionString).build();
+		}
+		catch (MalformedURLException e)
+		{
+			log.fatal("Unable to connect to couchdb", e);
+			return;
+		}
+
+		CouchDbInstance dbInstance = new StdCouchDbInstance(httpClient);
+		StdCouchDbConnector db = new StdCouchDbConnector(databaseName, dbInstance);
+		db.createDatabaseIfNotExists();
+		db.create(encodeSummary);
+		db.ensureFullCommit();
+		httpClient.shutdown();
 	}
 
 	public static void main(String[] args) throws IOException

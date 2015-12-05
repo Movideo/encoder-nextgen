@@ -72,7 +72,15 @@ public class BitcodinProxy
 		{
 			throw new BitcodinException(Constants.STATUS_CODE_BAD_REQUEST, e.getMessage(), e);
 		}
-		String apiPath = "manifest/" + manifestType + "/" + subtitleType;
+
+		String apiPath = null;
+		if (manifestType.equals("mpd")) {
+			apiPath = "manifest/mpd/" + subtitleType;
+		} else if (manifestType.equals("m3u8")) {
+			apiPath = "manifest/hls/" + subtitleType;
+		}
+//		String apiPath = "manifest/" + manifestType + "/" + subtitleType;
+
 		log.debug("Payload in create subtitle call: " + payload);
 		return BitcodinHttpHelper.makeHttpCall(apiPath, payload.toString(), "post");
 	}

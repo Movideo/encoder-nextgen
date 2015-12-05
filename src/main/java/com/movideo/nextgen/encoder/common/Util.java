@@ -96,7 +96,9 @@ public class Util
 		for(SubtitleInfo inputSub : inputSubsList)
 		{
 			SubtitleInfo outputSub = inputSub;
-			outputSub.setUrl(getMediaUrlFromSegments(clientId, mediaId, inputSub.getUrl()));
+//			outputSub.setUrl(getMediaUrlFromSegments(clientId, mediaId, inputSub.getUrl()));
+			outputSub.setUrl(inputSub.getUrl());
+
 			outputSubsList.add(outputSub);
 		}
 		return outputSubsList;

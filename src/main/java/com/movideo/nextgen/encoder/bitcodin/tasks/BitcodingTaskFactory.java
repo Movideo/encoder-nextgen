@@ -15,25 +15,30 @@ public class BitcodingTaskFactory implements TaskFactory
 
 	public BitcodingTaskFactory(QueueManager queueManager, EncodeDAO encodeDao)
 	{
-		this.queueManager = queueManager;
-		this.encodeDao = encodeDao;
+	this.queueManager = queueManager;
+	this.encodeDao = encodeDao;
 	}
 
-	@Override public Task createTaskInstance(String task, String jobString) throws InstantiationException
+	@Override
+	public Task createTaskInstance(String task, String jobString) throws InstantiationException
 	{
-		TaskType taskType = TaskType.valueOf(task);
+	TaskType taskType = TaskType.valueOf(task);
 
-		switch (taskType)
-		{
+	switch(taskType)
+	{
 		case CREATE_ENCONDING_JOB:
-			return new CreateBitcodinJobTask(queueManager, jobString);
+		return new CreateBitcodinJobTask(queueManager, jobString);
 		case POLL_ENCODING_JOB_STATUS:
-			return new PollBitcodinJobStatusTask(queueManager, encodeDao, jobString);
+		return new PollBitcodinJobStatusTask(queueManager, encodeDao, jobString);
 		case PROCESS_ENCODING_REQUEST:
-			return new ProcessEncodeRequestTask(queueManager, jobString);
+		return new ProcessEncodeRequestTask(queueManager, jobString);
+		case RETRY_CREATE_JOB:
+		return new RetryCreateBitcodinJobTask(queueManager, jobString);
+		case RETRY_POLL_STATUS:
+		return new RetryPollBitcodinJobStatusTask(queueManager, jobString);
 		default:
-			throw new InstantiationException("invalid taskName " + task);
-		}
+		throw new InstantiationException("Invalid taskName " + task);
+	}
 
 	}
 }

@@ -1,11 +1,9 @@
 package com.movideo.nextgen.encoder.config;
 
+import java.util.Properties;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
 
 public class AppConfig
 {
@@ -33,131 +31,169 @@ public class AppConfig
 	private String databaseConnectionString;
 	private String databaseName;
 
+	private String bitCodinContentype;
+	private String bitCodinApiVersion;
+	private String bitCodinApiKey;
+
 	public int getClientId()
 	{
-		return clientId;
+	return clientId;
 	}
 
 	public int getCorePoolSize()
 	{
-		return corePoolSize;
+	return corePoolSize;
 	}
 
 	public int getMaxPoolSize()
 	{
-		return maxPoolSize;
+	return maxPoolSize;
 	}
 
 	public long getKeepAliveTime()
 	{
-		return keepAliveTime;
+	return keepAliveTime;
 	}
 
 	public String getRedisConnectionString()
 	{
-		return redisConnectionString;
+	return redisConnectionString;
 	}
 
 	public String getEncodedOutputPrefix()
 	{
-		return encodedOutputPrefix;
+	return encodedOutputPrefix;
 	}
 
 	public String getEncodedOutputStorageType()
 	{
-		return encodedOutputStorageType;
+	return encodedOutputStorageType;
 	}
 
 	public int getSampleJobMediaId()
 	{
-		return sampleJobMediaId;
+	return sampleJobMediaId;
 	}
 
 	public int getSampleJobencProfileId()
 	{
-		return sampleJobencProfileId;
+	return sampleJobencProfileId;
 	}
 
 	public String getSampleJobSpeed()
 	{
-		return sampleJobSpeed;
+	return sampleJobSpeed;
 	}
 
 	public String getSampleJobInputFile()
 	{
-		return sampleJobInputFile;
+	return sampleJobInputFile;
 	}
 
 	public String getSampleJobStatus()
 	{
-		return sampleJobStatus;
+	return sampleJobStatus;
 	}
 
 	public int getSampleJobDefOutputId()
 	{
-		return sampleJobDefOutputId;
+	return sampleJobDefOutputId;
 	}
 
 	public int getParalleljobCountforTest()
 	{
-		return paralleljobCountforTest;
+	return paralleljobCountforTest;
 	}
 
 	public String getDatabaseConnectionString()
 	{
-		return databaseConnectionString;
+	return databaseConnectionString;
 	}
 
 	public void setDatabaseConnectionString(String databaseConnectionString)
 	{
-		this.databaseConnectionString = databaseConnectionString;
+	this.databaseConnectionString = databaseConnectionString;
 	}
 
 	public String getDatabaseName()
 	{
-		return databaseName;
+	return databaseName;
 	}
 
 	public void setDatabaseName(String databaseName)
 	{
-		this.databaseName = databaseName;
+	this.databaseName = databaseName;
 	}
 
 	public int getRedisPort()
 	{
-		return redisPort;
+	return redisPort;
 	}
 
 	public String getRedisPassword()
 	{
-		return redisPassword;
+	return redisPassword;
+	}
+
+	public String getBitCodinContentype()
+	{
+	return bitCodinContentype;
+	}
+
+	public void setBitCodinContentype(String bitCodinContentype)
+	{
+	this.bitCodinContentype = bitCodinContentype;
+	}
+
+	public String getBitCodinApiVersion()
+	{
+	return bitCodinApiVersion;
+	}
+
+	public void setBitCodinApiVersion(String bitCodinApiVersion)
+	{
+	this.bitCodinApiVersion = bitCodinApiVersion;
+	}
+
+	public String getBitCodinApiKey()
+	{
+	return bitCodinApiKey;
+	}
+
+	public void setBitCodinApiKey(String bitCodinApiKey)
+	{
+	this.bitCodinApiKey = bitCodinApiKey;
 	}
 
 	public AppConfig(Properties prop)
 	{
 
-		clientId = Integer.parseInt(prop.getProperty("app.clientid"));
-		corePoolSize = Integer.parseInt(prop.getProperty("threadpool.corePoolSize"));
-		maxPoolSize = Integer.parseInt(prop.getProperty("threadpool.maxPoolSize"));
-		keepAliveTime = Long.parseLong(prop.getProperty("threadpool.keepAliveTime"));
+	clientId = Integer.parseInt(prop.getProperty("app.clientid"));
+	corePoolSize = Integer.parseInt(prop.getProperty("threadpool.corePoolSize"));
+	maxPoolSize = Integer.parseInt(prop.getProperty("threadpool.maxPoolSize"));
+	keepAliveTime = Long.parseLong(prop.getProperty("threadpool.keepAliveTime"));
 
-		redisConnectionString = prop.getProperty("redis.connectionString");
-		redisPort = Integer.parseInt(prop.getProperty("redis.port"));
-		redisPassword = prop.getProperty("redis.password");
-		encodedOutputPrefix = prop.getProperty("encoded.output.prefix");
-		encodedOutputStorageType = prop.getProperty("encoded.output.storage.type");
+	redisConnectionString = prop.getProperty("redis.connectionString");
+	redisPort = Integer.parseInt(prop.getProperty("redis.port"));
+	redisPassword = prop.getProperty("redis.password");
+	encodedOutputPrefix = prop.getProperty("encoded.output.prefix");
+	encodedOutputStorageType = prop.getProperty("encoded.output.storage.type");
 
-		sampleJobMediaId = Integer.parseInt(prop.getProperty("sample.test.job.mediaId"));
-		sampleJobencProfileId = Integer.parseInt(prop.getProperty("sample.test.job.encProfileId"));
-		sampleJobSpeed = prop.getProperty("sample.test.job.speed");
-		;
-		sampleJobInputFile = prop.getProperty("sample.test.job.inputFileName");
-		sampleJobStatus = prop.getProperty("sample.test.job.status");
-		sampleJobDefOutputId = Integer.parseInt(prop.getProperty("sample.test.job.default.output.id"));
-		paralleljobCountforTest = Integer.parseInt(prop.getProperty("test.app.num.paralleljobs"));
+	sampleJobMediaId = Integer.parseInt(prop.getProperty("sample.test.job.mediaId"));
+	sampleJobencProfileId = Integer.parseInt(prop.getProperty("sample.test.job.encProfileId"));
+	sampleJobSpeed = prop.getProperty("sample.test.job.speed");
 
-		databaseConnectionString = prop.getProperty("couch.connectionString");
-		databaseName = prop.getProperty("couch.databaseName");
+	sampleJobInputFile = prop.getProperty("sample.test.job.inputFileName");
+	sampleJobStatus = prop.getProperty("sample.test.job.status");
+	sampleJobDefOutputId = Integer.parseInt(prop.getProperty("sample.test.job.default.output.id"));
+	paralleljobCountforTest = Integer.parseInt(prop.getProperty("test.app.num.paralleljobs"));
+
+	databaseConnectionString = prop.getProperty("couch.connectionString");
+	databaseName = prop.getProperty("couch.databaseName");
+
+	bitCodinContentype = prop.getProperty("bitCodin.header.contentType");
+	bitCodinApiVersion = prop.getProperty("bitCodin.header.apiVersion");
+	bitCodinApiKey = prop.getProperty("bitCodin.header.apiKey");
 
 	}
 

@@ -42,7 +42,8 @@ public interface Constants
 	String OUTPUT_STORAGE_TYPE = "azure";
 
 	/* Output BLOB details */
-	String AZURE_OUPUT_ACCOUNT_NAME = "movideoqaencoded1";
+	String AZURE_OUTPUT_ACCOUNT_NAME = "movideoqaencoded1";
+	String AZURE_OUTPUT_URL_PREFIX = "https://" + AZURE_OUTPUT_ACCOUNT_NAME + ".blob.core.windows.net/";
 	String AZURE_OUPUT_ACCOUNT_KEY = "vbSDcGSy2mbW55B2xMpkJ5Ns93CxNYJUIOz0kEdtQzhzv1+Wh87o5Daf9cf9zt6v1h2nLdiR/bzQqGvEPWFAGA==";
 	String AZURE_OUTPUT_BLOB_CONTAINER_PREFIX = "encoded-";
 	String BITCODIN_OUTPUT_NAME_PREFIX = "Output-";
@@ -86,5 +87,7 @@ public interface Constants
 			+ "&password=" + CASTLABS_MERCHANT_PASSWORD;
 	String BITCODIN_CENC_DRM_CONFIG_KEY = "drmConfig";
 	String BITCODIN_HLS_DRM_CONFIG_KEY = "drmConfig";
+	String HLS_STREAM_TYPE = "hls";
+	String MPEG_DASH_STREAM_TYPE = "mpeg-dash";
 
 }

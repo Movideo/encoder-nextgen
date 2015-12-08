@@ -27,7 +27,7 @@ public class EncodeSummary extends CouchDbDocument
 
 	private String variant;
 
-	private boolean streamProtected;
+	private String streamType;
 
 	public Manifest[] getManifests()
 	{
@@ -89,14 +89,14 @@ public class EncodeSummary extends CouchDbDocument
 		this.variant = variant;
 	}
 
-	public boolean isStreamProtected()
+	public String getStreamType()
 	{
-		return streamProtected;
+		return streamType;
 	}
 
-	public void setStreamProtected(boolean streamProtected)
+	public void setStreamType(String streamType)
 	{
-		this.streamProtected = streamProtected;
+		this.streamType = streamType;
 	}
 
 	@Override

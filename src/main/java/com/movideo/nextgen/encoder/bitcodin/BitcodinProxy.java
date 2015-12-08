@@ -74,12 +74,15 @@ public class BitcodinProxy
 		}
 
 		String apiPath = null;
-		if (manifestType.equals("mpd")) {
+		if(manifestType.equals("mpd"))
+		{
 			apiPath = "manifest/mpd/" + subtitleType;
-		} else if (manifestType.equals("m3u8")) {
+		}
+		else if(manifestType.equals("m3u8"))
+		{
 			apiPath = "manifest/hls/" + subtitleType;
 		}
-//		String apiPath = "manifest/" + manifestType + "/" + subtitleType;
+		//		String apiPath = "manifest/" + manifestType + "/" + subtitleType;
 
 		log.debug("Payload in create subtitle call: " + payload);
 		return BitcodinHttpHelper.makeHttpCall(apiPath, payload.toString(), "post");
@@ -99,7 +102,6 @@ public class BitcodinProxy
 			payload.put("manifestTypes", job.getManifestTypes());
 			payload.put("speed", job.getSpeed());
 			// TODO: Add support for audioMetadata
-			//			payload.put("outputId", job.getOutputId());
 			log.debug("About to create input");
 
 			JSONObject response = createAzureInput(inputConfig, job);

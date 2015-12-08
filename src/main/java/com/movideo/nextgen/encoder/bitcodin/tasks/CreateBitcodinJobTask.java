@@ -55,7 +55,7 @@ public class CreateBitcodinJobTask extends Task
 		JSONArray manifests = new JSONArray();
 
 		encodeSummary.put("manifests", manifests);
-		encodeSummary.put("streamProtected", job.isProtectionRequired());
+		encodeSummary.put("streamType", job.isProtectionRequired() ? "protected" : "unprotected");
 
 		String json = encodeSummary.toString();
 		ObjectMapper objectMapper = new ObjectMapper();
@@ -94,7 +94,7 @@ public class CreateBitcodinJobTask extends Task
 
 			InputConfig inputConfig = new InputConfig(Constants.AZURE_INPUT_TYPE, Constants.AZURE_INPUT_ACCOUNT_NAME, Constants.AZURE_INPUT_ACCOUNT_KEY, Constants.AZURE_INPUT_BLOB_CONTAINER_PREFIX + job.getClientId());
 
-			OutputConfig outputConfig = new OutputConfig(Constants.OUTPUT_STORAGE_TYPE, Constants.BITCODIN_OUTPUT_NAME_PREFIX + job.getClientId() + "-" + job.getMediaId(), Constants.AZURE_OUPUT_ACCOUNT_NAME, Constants.AZURE_OUPUT_ACCOUNT_KEY, Constants.AZURE_OUTPUT_BLOB_CONTAINER_PREFIX + job.getClientId(), Constants.AZURE_OUTPUT_BLOB_MEDIA_PATH_PREFIX + "/" + job.getMediaId() + "/");
+			OutputConfig outputConfig = new OutputConfig(Constants.OUTPUT_STORAGE_TYPE, Constants.BITCODIN_OUTPUT_NAME_PREFIX + job.getClientId() + "-" + job.getMediaId(), Constants.AZURE_OUTPUT_ACCOUNT_NAME, Constants.AZURE_OUPUT_ACCOUNT_KEY, Constants.AZURE_OUTPUT_BLOB_CONTAINER_PREFIX + job.getClientId(), Constants.AZURE_OUTPUT_BLOB_MEDIA_PATH_PREFIX + "/" + job.getMediaId() + "/");
 
 			// TODO: Track these statuses by Media Id. Dropbox processor creates
 			// the

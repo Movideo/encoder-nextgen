@@ -68,7 +68,8 @@ public class ProcessEncodeRequestTask extends Task
 			job.setMediaId(encodeRequest.getMediaId());
 			job.setProductId(encodeRequest.getProductId());
 			job.setVariant(encodeRequest.getVariant());
-			job.setSubtitleList(Util.formatSubUrls(encodeRequest.getSubtitleInfo(), encodeRequest.getClientId(), encodeRequest.getMediaId()));
+			//			job.setSubtitleList(Util.formatSubUrls(encodeRequest.getSubtitleInfo(), encodeRequest.getClientId(), encodeRequest.getMediaId()));
+			job.setSubtitleList(encodeRequest.getSubtitleInfo());
 			log.debug("Basic params set");
 
 			job.setEncodingProfileId(encodeInfo.getEncodingProfileId());
@@ -76,7 +77,7 @@ public class ProcessEncodeRequestTask extends Task
 			job.setInputFileName(encodeRequest.getInputFilename());
 			log.debug("filename set");
 			job.setInputFileUrl(Util.getMediaUrlFromSegments(encodeRequest.getClientId(), encodeRequest.getMediaId(),
-					encodeRequest.getInputFilename()));
+					encodeRequest.getInputFilename(), true, null, true));
 			log.debug("Input file url set");
 			StreamInfo streams = encodeInfo.getStreamInfo();
 			log.debug("Got streams");

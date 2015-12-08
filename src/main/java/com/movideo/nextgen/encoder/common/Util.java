@@ -1,5 +1,7 @@
 package com.movideo.nextgen.encoder.common;
 
+import java.net.URISyntaxException;
+import java.security.InvalidKeyException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,8 +10,15 @@ import org.apache.logging.log4j.Logger;
 
 import com.amazonaws.util.json.JSONException;
 import com.google.gson.Gson;
+import com.microsoft.azure.storage.CloudStorageAccount;
+import com.microsoft.azure.storage.StorageException;
+import com.microsoft.azure.storage.blob.CloudBlobClient;
+import com.microsoft.azure.storage.blob.CloudBlobContainer;
+import com.microsoft.azure.storage.blob.CloudBlockBlob;
 import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
+import com.movideo.nextgen.encoder.bitcodin.BitcodinException;
 import com.movideo.nextgen.encoder.config.Constants;
+import com.movideo.nextgen.encoder.models.AzureBlobInfo;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 
 import redis.clients.jedis.Jedis;
@@ -84,24 +93,112 @@ public class Util
 	// getBitcodinJobFromJSON(json);
 	// }
 
-	public static String getMediaUrlFromSegments(int clientId, int mediaId, String fileName)
+	public static String getMediaUrlFromSegments(int clientId, int mediaId, String fileName, boolean isInput, String outputPath, boolean includePrefix)
 	{
-		return Constants.AZURE_INPUT_URL_PREFIX + Constants.AZURE_INPUT_BLOB_CONTAINER_PREFIX + clientId + "/"
-				+ Constants.AZURE_INPUT_BLOB_MEDIA_PATH_PREFIX + "/" + mediaId + "/" + fileName;
+		StringBuffer buffer = new StringBuffer();
+		if(includePrefix)
+		{
+			if(isInput)
+			{
+				buffer.append(Constants.AZURE_INPUT_URL_PREFIX).append(Constants.AZURE_INPUT_BLOB_CONTAINER_PREFIX).append(clientId).append("/");
+			}
+			else
+			{
+				buffer.append(Constants.AZURE_OUTPUT_URL_PREFIX).append(Constants.AZURE_OUTPUT_BLOB_CONTAINER_PREFIX).append(clientId).append("/");
+			}
+		}
+		//Media path prefix is the same for input and output, for now.
+		buffer.append(Constants.AZURE_INPUT_BLOB_MEDIA_PATH_PREFIX).append("/").append(mediaId).append("/").append(outputPath != null ? outputPath + "/" : "").append(fileName);
+		return buffer.toString();
 	}
 
-	public static List<SubtitleInfo> formatSubUrls(List<SubtitleInfo> inputSubsList, int clientId, int mediaId)
+	public static List<SubtitleInfo> formatSubUrls(List<SubtitleInfo> inputSubsList, int clientId, int mediaId, boolean isInput, String outputPath, boolean includePrefix)
 	{
 		List<SubtitleInfo> outputSubsList = new ArrayList<>();
+
 		for(SubtitleInfo inputSub : inputSubsList)
 		{
-			SubtitleInfo outputSub = inputSub;
-//			outputSub.setUrl(getMediaUrlFromSegments(clientId, mediaId, inputSub.getUrl()));
-			outputSub.setUrl(inputSub.getUrl());
-
+			SubtitleInfo outputSub = new SubtitleInfo();
+			outputSub.setLangLong(inputSub.getLangLong());
+			outputSub.setLangShort(inputSub.getLangShort());
+			outputSub.setType(inputSub.getType());
+			outputSub.setUrl(getMediaUrlFromSegments(clientId, mediaId, inputSub.getUrl(), isInput, outputPath, includePrefix));
 			outputSubsList.add(outputSub);
 		}
 		return outputSubsList;
+	}
+
+	public static String getManifestUrl(EncodingJob job, String tempUrl) throws BitcodinException
+	{
+		//"http://eu-storage-bitcodin.storage.googleapis.com/bitStorage/2232_5dbb991ee5d11f1a3f8dd3e9898c8f46/38228_2d5fbd0c6cba17ebe51f98d2b635c5dd/test1234.mpd"
+		String[] tokens = tempUrl.split("/");
+		int tokenCount = tokens.length;
+
+		if(tokenCount < 2)
+		{
+			throw new BitcodinException(Constants.STATUS_CODE_BAD_REQUEST, "Bad temp URL. Could not get manifest url", null);
+		}
+
+		StringBuffer buffer = new StringBuffer(Constants.AZURE_OUTPUT_URL_PREFIX).append(Constants.AZURE_OUTPUT_BLOB_CONTAINER_PREFIX).append(job.getClientId()).append("/");
+		buffer.append(Constants.AZURE_INPUT_BLOB_MEDIA_PATH_PREFIX).append("/").append(job.getMediaId()).append("/").append(tokens[tokenCount - 2]).append("/").append(tokens[tokenCount - 1]);
+
+		log.debug("Manifest URL : " + buffer);
+		return buffer.toString();
+	}
+
+	public static String getBitcodinFolderHash(String tempUrl)
+	{
+		//"http://eu-storage-bitcodin.storage.googleapis.com/bitStorage/2232_5dbb991ee5d11f1a3f8dd3e9898c8f46/38228_2d5fbd0c6cba17ebe51f98d2b635c5dd/test1234.mpd"
+		String[] uriSegments = tempUrl.split("/");
+		String bitcodinFolderHash = uriSegments[uriSegments.length - 2];
+
+		log.debug("Folder hash is: " + bitcodinFolderHash);
+		return bitcodinFolderHash;
+	}
+
+	public static void copyAzureBlob(AzureBlobInfo source, AzureBlobInfo destination) throws URISyntaxException, StorageException, InvalidKeyException
+	{
+
+		final String sourceStorageConnectionString = buildAzureConnectionString(source);
+		final String destinationStorageConnectionString = buildAzureConnectionString(destination);
+
+		log.debug("About to move blob files from source to destination. Params:\n");
+
+		CloudStorageAccount sourceStorageAccount = CloudStorageAccount.parse(sourceStorageConnectionString);
+		CloudBlobClient sourceBlobClient = sourceStorageAccount.createCloudBlobClient();
+		CloudBlobContainer sourceContainer = sourceBlobClient.getContainerReference(source.getContainer());
+
+		CloudStorageAccount destStorageAccount = CloudStorageAccount.parse(destinationStorageConnectionString);
+		CloudBlobClient destBlobClient = destStorageAccount.createCloudBlobClient();
+		CloudBlobContainer destContainer = destBlobClient.getContainerReference(destination.getContainer());
+
+		log.debug("Input: Connection string: " + sourceStorageConnectionString + ", Container: " + source.getContainer());
+		log.debug("Input: Connection string: " + destinationStorageConnectionString + ", Container: " + destination.getContainer());
+
+		int countFiles = source.getBlobReferences().size();
+
+		log.debug("Count of files to be moved: " + countFiles);
+
+		for(int counter = 0; counter < countFiles; counter++)
+		{
+			CloudBlockBlob sourceBlob = sourceContainer.getBlockBlobReference(source.getBlobReferences().get(counter));
+			log.debug("Source blob reference: " + source.getBlobReferences().get(counter));
+
+			CloudBlockBlob destBlob = destContainer.getBlockBlobReference(destination.getBlobReferences().get(counter));
+			log.debug("Destination blob reference: " + destination.getBlobReferences().get(counter));
+
+			destBlob.startCopyFromBlob(sourceBlob);
+			log.debug("Started copying " + source.getBlobReferences().get(counter) + "to " + destination.getContainer());
+
+		}
+
+	}
+
+	private static String buildAzureConnectionString(AzureBlobInfo info)
+	{
+		return "DefaultEndpointsProtocol=http;" +
+				"AccountName=" + info.getAccountName() + ";" +
+				"AccountKey=" + info.getAccountKey();
 	}
 
 }

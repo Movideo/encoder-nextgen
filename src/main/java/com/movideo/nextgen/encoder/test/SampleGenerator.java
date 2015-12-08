@@ -82,11 +82,11 @@ public class SampleGenerator
 		audioConfList.add(audioConfig);
 
 		List<String> manifestTypes = new ArrayList<String>();
-		//		manifestTypes.add("m3u8");
+		manifestTypes.add("m3u8");
 		manifestTypes.add("mpd");
 
 		StreamInfo streamInfo = new StreamInfo();
-		streamInfo.setProtectionRequired(true);
+		//		streamInfo.setProtectionRequired(true);
 		streamInfo.setManifestType(manifestTypes);
 		streamInfo.setAudioConfig(audioConfList);
 		streamInfo.setVideoConfig(videoConfList);

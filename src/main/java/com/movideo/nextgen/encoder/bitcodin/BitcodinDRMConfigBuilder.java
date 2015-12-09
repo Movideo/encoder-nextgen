@@ -10,7 +10,7 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.movideo.nextgen.encoder.config.Constants;
+import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.drm.castlabs.CastlabsException;
 import com.movideo.nextgen.encoder.drm.castlabs.DRMHelper;
 import com.movideo.nextgen.encoder.models.DRMInfo;
@@ -41,26 +41,26 @@ public class BitcodinDRMConfigBuilder
 
 		for(String manifestType : manifestTypes)
 		{
-			if(manifestType.equalsIgnoreCase(Constants.MPEG_DASH_MANIFEST_TYPE))
+			if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.mpd.manifest.type")))
 			{
 				try
 				{
-					drmConfigMap.put(Constants.CENC_ENCRYPTION_TYPE, getCENCConfig(drmInfoMap.get(manifestType), job));
+					drmConfigMap.put(Util.getConfigProperty("bitcodin.drm.cenc.encryptionType"), getCENCConfig(drmInfoMap.get(manifestType), job));
 				}
 				catch(JSONException e)
 				{
-					throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, e.getMessage(), e);
+					throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), e.getMessage(), e);
 				}
 			}
-			else if(manifestType.equalsIgnoreCase(Constants.HLS_MANIFEST_TYPE))
+			else if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.hls.manifest.type")))
 			{
 				try
 				{
-					drmConfigMap.put(Constants.FPS_ENCRYPTION_TYPE, getHlsConfig(drmInfoMap.get(manifestType), job));
+					drmConfigMap.put(Util.getConfigProperty("bitcodin.drm.hls.drmConfig.key"), getHlsConfig(drmInfoMap.get(manifestType), job));
 				}
 				catch(JSONException e)
 				{
-					throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, e.getMessage(), e);
+					throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), e.getMessage(), e);
 				}
 			}
 		}
@@ -80,11 +80,11 @@ public class BitcodinDRMConfigBuilder
 		 * "#CAESEOtnarvLNF6Wu89hZjDxo9oaDXdpZGV2aW5lX3Rlc3QiEGZrajNsamFTZGZhbGtyM2oqAkhEMgA=",
 		 */
 		String[] keys = info.getKeys();
-		drmConfig.put("system", Constants.CENC_ENCRYPTION_TYPE);
+		drmConfig.put("system", Util.getConfigProperty("bitcodin.drm.cenc.encryptionType"));
 		drmConfig.put("kid", keys[0]);
 		drmConfig.put("key", keys[1]);
 		drmConfig.put("laUrl", info.getLicenseUrl());
-		drmConfig.put("method", Constants.BITCODIN_CENC_METHOD);
+		drmConfig.put("method", Util.getConfigProperty("bitcodin.drm.cenc.method"));
 		drmConfig.put("pssh", info.getPssh());
 
 		log.debug("BitcodinDRMConfigBuilder :getCENCConfig() ->  DRM type is CENC and drmConfig object is: \n"
@@ -105,12 +105,12 @@ public class BitcodinDRMConfigBuilder
 		String[] keys = info.getKeys();
 		JSONObject hlsEncryptionConfig = new JSONObject();
 		//TODO: figure out a way to do vanilla AES-128
-		hlsEncryptionConfig.put("method", Constants.FPS_ENCRYPTION_TYPE);
+		hlsEncryptionConfig.put("method", Util.getConfigProperty("bitcodin.drm.fps.encryptionType"));
 		hlsEncryptionConfig.put("iv", keys[0]);
 		hlsEncryptionConfig.put("key", keys[1]);
 		hlsEncryptionConfig.put("uri", info.getLicenseUrl());
 
-		log.debug("BitcodinDRMConfigBuilder :getHlsConfig() ->DRM type is " + Constants.FPS_ENCRYPTION_TYPE
+		log.debug("BitcodinDRMConfigBuilder :getHlsConfig() ->DRM type is " + Util.getConfigProperty("bitcodin.drm.fps.encryptionType")
 				+ " and drmConfig object is: \n" + hlsEncryptionConfig.toString());
 
 		return hlsEncryptionConfig;

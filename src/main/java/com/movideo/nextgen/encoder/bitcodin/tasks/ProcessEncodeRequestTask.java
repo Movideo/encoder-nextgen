@@ -14,7 +14,6 @@ import com.movideo.nextgen.common.multithreading.Task;
 import com.movideo.nextgen.common.queue.QueueException;
 import com.movideo.nextgen.common.queue.QueueManager;
 import com.movideo.nextgen.encoder.common.Util;
-import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 
 public class ProcessEncodeRequestTask extends Task
@@ -22,8 +21,8 @@ public class ProcessEncodeRequestTask extends Task
 
 	private static final Logger log = LogManager.getLogger();
 
-	private String workingListName = Constants.REDIS_ENCODE_REQUEST_WORKING_LIST,
-			errorListName = Constants.REDIS_ENCODE_REQUEST_ERROR_LIST, successListName = Constants.REDIS_INPUT_LIST;
+	private String workingListName = Util.getConfigProperty("redis.encodeOrchestrator.working.list"),
+			errorListName = Util.getConfigProperty("redis.encodeOrchestrator.error.list"), successListName = Util.getConfigProperty("redis.encodeOrchestrator.success.list");
 
 	public ProcessEncodeRequestTask(QueueManager manager, String jobString)
 	{
@@ -85,7 +84,7 @@ public class ProcessEncodeRequestTask extends Task
 			log.debug("Got manifest types");
 			job.setProtectionRequired(streams.isProtectionRequired());
 			job.setReprocess(encodeInfo.isReprocessing());
-			job.setStatus(Constants.STATUS_NEW);
+			job.setStatus(Util.getConfigProperty("job.status.new"));
 			log.debug("Ready to post job request to the next list. Job string is: " + job.toString());
 			try
 			{

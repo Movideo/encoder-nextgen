@@ -22,7 +22,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.movideo.nextgen.encoder.common.EncoderException;
-import com.movideo.nextgen.encoder.config.Constants;
+import com.movideo.nextgen.encoder.common.Util;
 
 public class HttpHelper
 {
@@ -58,7 +58,7 @@ public class HttpHelper
 			{
 				responseString = EntityUtils.toString(entity, "UTF-8");
 				log.info("HttpHelper : httpService() -> RESPONSE IN HTTPSERVICE: " + responseString);
-				if(responseCode >= Constants.STATUS_CODE_BAD_REQUEST)
+				if(responseCode >= Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")))
 				{
 					throw new EncoderException(responseCode, responseString, null);
 				}
@@ -66,27 +66,27 @@ public class HttpHelper
 			}
 			catch(ParseException e)
 			{
-				throw new EncoderException(Constants.STATUS_CODE_SERVER_ERROR,
+				throw new EncoderException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")),
 						"ParseException occured while making response string", e);
 			}
 			catch(IOException e)
 			{
-				throw new EncoderException(Constants.STATUS_CODE_SERVER_ERROR,
+				throw new EncoderException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")),
 						"IOException occured while making response string", e);
 			}
 			catch(JSONException e)
 			{
-				throw new EncoderException(Constants.STATUS_CODE_SERVER_ERROR, "Error occured while making json object",
+				throw new EncoderException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), "Error occured while making json object",
 						e);
 			}
 		}
 		catch(ClientProtocolException e)
 		{
-			throw new EncoderException(Constants.STATUS_CODE_SERVER_ERROR, "HttpRequest excecution failed", e);
+			throw new EncoderException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), "HttpRequest excecution failed", e);
 		}
 		catch(IOException e)
 		{
-			throw new EncoderException(Constants.STATUS_CODE_SERVER_ERROR, "HttpRequest excecution failed", e);
+			throw new EncoderException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), "HttpRequest excecution failed", e);
 		}
 
 	}
@@ -99,7 +99,7 @@ public class HttpHelper
 		}
 		catch(IOException e)
 		{
-			throw new EncoderException(Constants.STATUS_CODE_SERVER_ERROR, e.getMessage(), e);
+			throw new EncoderException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), e.getMessage(), e);
 		}
 	}
 
@@ -125,7 +125,7 @@ public class HttpHelper
 			}
 			catch(UnsupportedEncodingException e)
 			{
-				throw new EncoderException(Constants.STATUS_CODE_SERVER_ERROR, e.getMessage(), e);
+				throw new EncoderException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), e.getMessage(), e);
 			}
 
 			uriRequest = post;

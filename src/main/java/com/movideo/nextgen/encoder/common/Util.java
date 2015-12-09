@@ -3,8 +3,11 @@ package com.movideo.nextgen.encoder.common;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.commons.configuration2.Configuration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,7 +20,6 @@ import com.microsoft.azure.storage.blob.CloudBlobContainer;
 import com.microsoft.azure.storage.blob.CloudBlockBlob;
 import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinException;
-import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.models.AzureBlobInfo;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 
@@ -33,6 +35,17 @@ public class Util
 {
 
 	private static final Logger log = LogManager.getLogger();
+	private static Configuration applicationConfig;
+
+	public static void setApplicationConfig(Configuration config)
+	{
+		applicationConfig = config;
+	}
+
+	public static String getConfigProperty(String key)
+	{
+		return applicationConfig.getString(key);
+	}
 
 	/**
 	 * Constructs a Bitcodin Job object from input JSON string Primarily avoids serialization and de-serialization
@@ -100,15 +113,15 @@ public class Util
 		{
 			if(isInput)
 			{
-				buffer.append(Constants.AZURE_INPUT_URL_PREFIX).append(Constants.AZURE_INPUT_BLOB_CONTAINER_PREFIX).append(clientId).append("/");
+				buffer.append(getConfigProperty("azure.blob.input.url.prefix")).append(getConfigProperty("azure.blob.input.container.prefix")).append(clientId).append("/");
 			}
 			else
 			{
-				buffer.append(Constants.AZURE_OUTPUT_URL_PREFIX).append(Constants.AZURE_OUTPUT_BLOB_CONTAINER_PREFIX).append(clientId).append("/");
+				buffer.append(getConfigProperty("azure.blob.output.url.prefix")).append(getConfigProperty("azure.blob.output.container.prefix")).append(clientId).append("/");
 			}
 		}
 		//Media path prefix is the same for input and output, for now.
-		buffer.append(Constants.AZURE_INPUT_BLOB_MEDIA_PATH_PREFIX).append("/").append(mediaId).append("/").append(outputPath != null ? outputPath + "/" : "").append(fileName);
+		buffer.append(getConfigProperty("azure.blob.media.path.prefix")).append("/").append(mediaId).append("/").append(outputPath != null ? outputPath + "/" : "").append(fileName);
 		return buffer.toString();
 	}
 
@@ -136,11 +149,11 @@ public class Util
 
 		if(tokenCount < 2)
 		{
-			throw new BitcodinException(Constants.STATUS_CODE_BAD_REQUEST, "Bad temp URL. Could not get manifest url", null);
+			throw new BitcodinException(Integer.parseInt(getConfigProperty("error.codes.bad.request")), "Bad temp URL. Could not get manifest url", null);
 		}
 
-		StringBuffer buffer = new StringBuffer(Constants.AZURE_OUTPUT_URL_PREFIX).append(Constants.AZURE_OUTPUT_BLOB_CONTAINER_PREFIX).append(job.getClientId()).append("/");
-		buffer.append(Constants.AZURE_INPUT_BLOB_MEDIA_PATH_PREFIX).append("/").append(job.getMediaId()).append("/").append(tokens[tokenCount - 2]).append("/").append(tokens[tokenCount - 1]);
+		StringBuffer buffer = new StringBuffer(getConfigProperty("azure.blob.output.url.prefix")).append(getConfigProperty("azure.blob.output.container.prefix")).append(job.getClientId()).append("/");
+		buffer.append(getConfigProperty("azure.blob.media.path.prefix")).append("/").append(job.getMediaId()).append("/").append(tokens[tokenCount - 2]).append("/").append(tokens[tokenCount - 1]);
 
 		log.debug("Manifest URL : " + buffer);
 		return buffer.toString();
@@ -194,11 +207,47 @@ public class Util
 
 	}
 
-	private static String buildAzureConnectionString(AzureBlobInfo info)
+	public static String buildAzureConnectionString(AzureBlobInfo info)
 	{
 		return "DefaultEndpointsProtocol=http;" +
 				"AccountName=" + info.getAccountName() + ";" +
 				"AccountKey=" + info.getAccountKey();
 	}
+
+	public static Map<String, String> getHeadersMap(String config)
+	{
+		Map<String, String> headersMap = new HashMap<>();
+		String[] headers = config.split(",");
+		for(String header : headers)
+		{
+			String[] kvPair = header.split(":");
+			headersMap.put(kvPair[0], kvPair[1]);
+		}
+		return headersMap;
+	}
+
+	//	public static void main(String[] args) throws IOException
+	//	{
+	//		Parameters params = new Parameters();
+	//		FileBasedConfigurationBuilder<FileBasedConfiguration> builder = new FileBasedConfigurationBuilder<FileBasedConfiguration>(PropertiesConfiguration.class)
+	//				.configure(params.properties()
+	//						.setFileName("config.properties"));
+	//		try
+	//		{
+	//			Configuration config = builder.getConfiguration();
+	//			log.debug("Value of property is: " + config.getString("bitcodin.request.headers"));
+	//			Map<String, String> map = getHeadersMap(config.getString("bitcodin.request.headers"));
+	//			for(Map.Entry<String, String> kv : map.entrySet())
+	//			{
+	//				log.debug("Key: " + kv.getKey() + ", Value: " + kv.getValue());
+	//			}
+	//
+	//		}
+	//		catch(ConfigurationException cex)
+	//		{
+	//			System.exit(1);
+	//		}
+	//
+	//	}
 
 }

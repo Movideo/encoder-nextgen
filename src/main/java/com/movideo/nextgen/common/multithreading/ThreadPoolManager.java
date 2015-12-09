@@ -1,7 +1,5 @@
 package com.movideo.nextgen.common.multithreading;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.ThreadPoolExecutor;
 
 import org.apache.logging.log4j.LogManager;
@@ -11,8 +9,7 @@ import com.movideo.nextgen.common.queue.QueueException;
 import com.movideo.nextgen.common.queue.QueueManager;
 
 /**
- * Creates the manager thread that listens to a specific list and pushes
- * messages into the next working queue for processing. This is the thread that
+ * Creates the manager thread that listens to a specific list and pushes messages into the next working queue for processing. This is the thread that
  * needs to be monitored to make sure jobs are being pushed fine
  *
  * @author yramasundaram
@@ -30,8 +27,10 @@ public class ThreadPoolManager extends Thread
 	/**
 	 * Construct the manager thread
 	 *
-	 * @param listToWatch   - Input list
-	 * @param executor      - ThreadPoolExecutor to be used for submitting the tasks
+	 * @param listToWatch
+	 *            - Input list
+	 * @param executor
+	 *            - ThreadPoolExecutor to be used for submitting the tasks
 	 */
 	public ThreadPoolManager(QueueManager queueManager, TaskFactory taskFactory, String listToWatch, ThreadPoolExecutor executor, String taskName)
 	{
@@ -52,7 +51,7 @@ public class ThreadPoolManager extends Thread
 			return taskFactory.createTaskInstance(taskName, jobString);
 
 		}
-		catch (InstantiationException e)
+		catch(InstantiationException e)
 		{
 
 			log.error("Unable to create worker threads. Exception is: \n", e);
@@ -61,6 +60,7 @@ public class ThreadPoolManager extends Thread
 		return null;
 	}
 
+	@Override
 	public void run()
 	{
 
@@ -85,27 +85,27 @@ public class ThreadPoolManager extends Thread
 		//
 		// }
 
-		while (true)
+		while(true)
 		{
 
-	    /* New jobs */
+			/* New jobs */
 			try
 			{
-				while (queueManager.getQueueLength(listToWatch) > 0)
+				while(queueManager.getQueueLength(listToWatch) > 0)
 				{
 
 					// Assumes that the task class already knows that the job source
 					// is workerInputList
 					String jobString = (String) queueManager.moveAndReturnTopElement(listToWatch, workerInputList);
 
-		/* Thread safety */
-					if (jobString == null)
+					/* Thread safety */
+					if(jobString == null)
 					{
 						continue;
 					}
 
 					task = getTaskInstance(jobString);
-					if (task == null)
+					if(task == null)
 					{
 						log.fatal("Cannot instantiate worker");
 						return;
@@ -114,7 +114,7 @@ public class ThreadPoolManager extends Thread
 					executor.submit(task);
 				}
 			}
-			catch (QueueException e)
+			catch(QueueException e)
 			{
 				// TODO Auto-generated catch block
 				log.fatal("Queue Exception: " + e.getMessage());

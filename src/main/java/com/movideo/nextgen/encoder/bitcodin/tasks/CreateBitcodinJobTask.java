@@ -17,7 +17,6 @@ import com.movideo.nextgen.encoder.bitcodin.BitcodinDRMConfigBuilder;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinProxy;
 import com.movideo.nextgen.encoder.common.Util;
-import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.models.EncodeSummary;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 import com.movideo.nextgen.encoder.models.InputConfig;
@@ -35,7 +34,7 @@ public class CreateBitcodinJobTask extends Task
 
 	private static final Logger log = LogManager.getLogger();
 
-	private String workingListName = Constants.REDIS_INPUT_WORKING_LIST, errorListName = Constants.REDIS_JOB_ERROR_LIST, successListName = Constants.REDIS_PENDING_LIST;
+	private String workingListName = Util.getConfigProperty("redis.encoder.working.list"), errorListName = Util.getConfigProperty("redis.encoder.error.list"), successListName = Util.getConfigProperty("redis.encoder.success.list");
 
 	public CreateBitcodinJobTask(QueueManager queueManager, String jobString)
 	{
@@ -92,15 +91,15 @@ public class CreateBitcodinJobTask extends Task
 				return;
 			}
 
-			InputConfig inputConfig = new InputConfig(Constants.AZURE_INPUT_TYPE, Constants.AZURE_INPUT_ACCOUNT_NAME, Constants.AZURE_INPUT_ACCOUNT_KEY, Constants.AZURE_INPUT_BLOB_CONTAINER_PREFIX + job.getClientId());
+			InputConfig inputConfig = new InputConfig(Util.getConfigProperty("bitcodin.input.azure.type"), Util.getConfigProperty("azure.blob.input.account.name"), Util.getConfigProperty("azure.blob.input.account.key"), Util.getConfigProperty("azure.blob.input.container.prefix") + job.getClientId());
 
-			OutputConfig outputConfig = new OutputConfig(Constants.OUTPUT_STORAGE_TYPE, Constants.BITCODIN_OUTPUT_NAME_PREFIX + job.getClientId() + "-" + job.getMediaId(), Constants.AZURE_OUTPUT_ACCOUNT_NAME, Constants.AZURE_OUPUT_ACCOUNT_KEY, Constants.AZURE_OUTPUT_BLOB_CONTAINER_PREFIX + job.getClientId(), Constants.AZURE_OUTPUT_BLOB_MEDIA_PATH_PREFIX + "/" + job.getMediaId() + "/");
+			OutputConfig outputConfig = new OutputConfig(Util.getConfigProperty("bitcodin.output.azure.type"), Util.getConfigProperty("bitcodin.output.name.prefix") + job.getClientId() + "-" + job.getMediaId(), Util.getConfigProperty("azure.blob.output.account.name"), Util.getConfigProperty("azure.blob.output.account.key"), Util.getConfigProperty("azure.blob.output.container.prefix") + job.getClientId(), Util.getConfigProperty("azure.blob.media.path.prefix") + "/" + job.getMediaId() + "/");
 
 			// TODO: Track these statuses by Media Id. Dropbox processor creates
 			// the
 			// first entry
 			// which needs to be subsquently updated at each point.
-			job.setStatus(Constants.STATUS_RECEIVED);
+			job.setStatus(Util.getConfigProperty("job.status.submitted"));
 			boolean hasSubs = (job.getSubtitleList() != null) ? true : false;
 
 			if(job.isProtectionRequired())
@@ -112,14 +111,14 @@ public class CreateBitcodinJobTask extends Task
 					drmConfigMap = BitcodinDRMConfigBuilder.getDRMConfigMap(job);
 					if(drmConfigMap.isEmpty())
 					{
-						throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, "Could not construct DRM Config", null);
+						throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), "Could not construct DRM Config", null);
 					}
 				}
 				catch(BitcodinException e)
 				{
 					// TODO: Define an error handler to avoid repetition
 					log.error("An error occured while fetching DRM configuration", e);
-					job.setStatus(Constants.STATUS_JOB_FAILED);
+					job.setStatus(Util.getConfigProperty("job.status.failed"));
 					queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
 
 					return;
@@ -131,7 +130,7 @@ public class CreateBitcodinJobTask extends Task
 				log.debug("About to call createJob");
 				response = BitcodinProxy.createJob(inputConfig, outputConfig, job, drmConfigMap);
 				log.debug("CreateBitcodinJob : run() -> Got back the response from Bitcodin");
-				job.setStatus(Constants.STATUS_JOB_SUBMITTED);
+				job.setStatus(Util.getConfigProperty("job.status.submitted"));
 				if(hasSubs)
 				{
 					try
@@ -142,7 +141,7 @@ public class CreateBitcodinJobTask extends Task
 					catch(JSONException e)
 					{
 						log.error("Unable to get outputId for processing subtitles", e);
-						job.setStatus(Constants.STATUS_JOB_FAILED);
+						job.setStatus(Util.getConfigProperty("job.status.failed"));
 						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
 					}
 				}
@@ -150,7 +149,7 @@ public class CreateBitcodinJobTask extends Task
 			catch(BitcodinException e)
 			{
 				log.error("Job creation failed", e);
-				job.setStatus(Constants.STATUS_JOB_FAILED);
+				job.setStatus(Util.getConfigProperty("job.status.failed"));
 				queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
 
 				return;
@@ -169,7 +168,7 @@ public class CreateBitcodinJobTask extends Task
 				// This shouldn't happen either. Implies we got a 200 from
 				// Bitcodin but no jobId
 				log.error("An error occured while fetching jobId from the response", e);
-				job.setStatus(Constants.STATUS_JOB_FAILED);
+				job.setStatus(Util.getConfigProperty("job.status.failed"));
 				queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
 				return;
 			}
@@ -181,7 +180,7 @@ public class CreateBitcodinJobTask extends Task
 			catch(JSONException | IOException e)
 			{
 				log.error("An error occured while creating the job summary", e);
-				job.setStatus(Constants.STATUS_JOB_FAILED);
+				job.setStatus(Util.getConfigProperty("error.codes.internal.server.error"));
 				queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
 				return;
 			}

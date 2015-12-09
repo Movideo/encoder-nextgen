@@ -19,7 +19,6 @@ import com.movideo.nextgen.common.queue.QueueManager;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinProxy;
 import com.movideo.nextgen.encoder.common.Util;
-import com.movideo.nextgen.encoder.config.Constants;
 import com.movideo.nextgen.encoder.dao.EncodeDAO;
 import com.movideo.nextgen.encoder.models.AzureBlobInfo;
 import com.movideo.nextgen.encoder.models.EncodeSummary;
@@ -37,7 +36,7 @@ public class PollBitcodinJobStatusTask extends Task
 
 	private static final Logger log = LogManager.getLogger();
 
-	private String pendingListName = Constants.REDIS_PENDING_LIST, workingListName = Constants.REDIS_PENDING_WORKING_LIST, errorListName = Constants.REDIS_POLL_ERROR_LIST, successListName = Constants.REDIS_FINISHED_LIST;
+	private String pendingListName = Util.getConfigProperty("redis.poller.input.list"), workingListName = Util.getConfigProperty("redis.poller.working.list"), errorListName = Util.getConfigProperty("redis.poller.error.list"), successListName = Util.getConfigProperty("redis.poller.success.list");
 
 	private EncodeDAO encodeDAO;
 
@@ -84,13 +83,26 @@ public class PollBitcodinJobStatusTask extends Task
 			catch(BitcodinException | JSONException e)
 			{
 				log.error("Encoding failed for the job id " + job.getEncodingJobId(), e);
-				job.setErrorType(Constants.STATUS_JOB_FAILED);
+				job.setErrorType(Util.getConfigProperty("job.status.failed"));
 				queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
 				return;
 			}
 
 			if(status != null && (status.equalsIgnoreCase("Created") || status.equalsIgnoreCase("Enqueued") || status.equalsIgnoreCase("In Progress")))
 			{
+				//If there are no other items on the input queue, prevent this message from flooding bitcodin
+				if(queueManager.getQueueLength(pendingListName) == 0)
+				{
+					try
+					{
+						Thread.sleep(Integer.parseInt(Util.getConfigProperty("thread.sleep.time")));
+					}
+					catch(InterruptedException e)
+					{
+						log.info("Thread wait time interrupted");
+					}
+				}
+
 				// Put back in the pending list to check back later
 				queueManager.moveQueues(workingListName, pendingListName, jobString, job.toString());
 
@@ -106,8 +118,8 @@ public class PollBitcodinJobStatusTask extends Task
 					String[] manifestTypes = job.getManifestTypes();
 					if(manifestTypes == null || manifestTypes.length == 0)
 					{
-						log.error("Unable to create manifest with subs for job id " + job.getEncodingJobId(), new BitcodinException(Constants.STATUS_CODE_BAD_REQUEST, "Manifest array is empty", null));
-						job.setErrorType(Constants.STATUS_JOB_FAILED);
+						log.error("Unable to create manifest with subs for job id " + job.getEncodingJobId(), new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), "Manifest array is empty", null));
+						job.setErrorType(Util.getConfigProperty("job.status.failed"));
 						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
 						return;
 					}
@@ -125,26 +137,21 @@ public class PollBitcodinJobStatusTask extends Task
 							String urlKey;
 							Manifest manifest = new Manifest();
 
-							switch(manifestType)
+							if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.mpd.manifest.type")))
 							{
-								case Constants.MPEG_DASH_MANIFEST_TYPE:
-								{
-									urlKey = manifestType + "Url";
-									manifest.setType(manifestType);
-									break;
-
-								}
-								case Constants.HLS_MANIFEST_TYPE:
-								{
-									urlKey = Constants.HLS_STREAM_TYPE + "Url";
-									manifest.setType(Constants.HLS_MANIFEST_TYPE);
-									break;
-								}
-								default:
-								{
-									throw new BitcodinException(Constants.STATUS_CODE_BAD_REQUEST, "Unsupported manifest type", null);
-								}
+								urlKey = manifestType + "Url";
+								manifest.setType(manifestType);
 							}
+							else if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.hls.manifest.type")))
+							{
+								urlKey = Util.getConfigProperty("stream.hls.type") + "Url";
+								manifest.setType(Util.getConfigProperty("stream.hls.manifest.type"));
+							}
+							else
+							{
+								throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), "Unsupported manifest type", null);
+							}
+
 							if(response.has(urlKey))
 							{
 								tempUrl = response.getString(urlKey);
@@ -153,13 +160,13 @@ public class PollBitcodinJobStatusTask extends Task
 							}
 							else
 							{
-								throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, "Unable to retrieve manifest url with subtitles!", null);
+								throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), "Unable to retrieve manifest url with subtitles!", null);
 							}
 						}
 						catch(BitcodinException | JSONException e)
 						{
 							log.error("Unable to create manifest with subs for job id " + job.getEncodingJobId(), e);
-							job.setErrorType(Constants.STATUS_JOB_FAILED);
+							job.setErrorType(Util.getConfigProperty("job.status.failed"));
 							queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
 							return;
 						}
@@ -172,7 +179,7 @@ public class PollBitcodinJobStatusTask extends Task
 					catch(BitcodinException e)
 					{
 						log.error("Unable to transfer files after subtitle processing for job" + job.getEncodingJobId(), e);
-						job.setErrorType(Constants.STATUS_JOB_FAILED);
+						job.setErrorType(Util.getConfigProperty("job.status.failed"));
 						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
 						return;
 					}
@@ -182,13 +189,13 @@ public class PollBitcodinJobStatusTask extends Task
 						AzureBlobInfo input = new AzureBlobInfo();
 						AzureBlobInfo output = new AzureBlobInfo();
 
-						input.setAccountKey(Constants.AZURE_INPUT_ACCOUNT_KEY);
-						input.setAccountName(Constants.AZURE_INPUT_ACCOUNT_NAME);
-						input.setContainer(Constants.AZURE_INPUT_BLOB_CONTAINER_PREFIX + job.getClientId());
+						input.setAccountKey(Util.getConfigProperty("azure.blob.input.account.key"));
+						input.setAccountName(Util.getConfigProperty("azure.blob.input.account.name"));
+						input.setContainer(Util.getConfigProperty("azure.blob.input.container.prefix") + job.getClientId());
 
-						output.setAccountKey(Constants.AZURE_OUPUT_ACCOUNT_KEY);
-						output.setAccountName(Constants.AZURE_OUTPUT_ACCOUNT_NAME);
-						output.setContainer(Constants.AZURE_OUTPUT_BLOB_CONTAINER_PREFIX + job.getClientId());
+						output.setAccountKey(Util.getConfigProperty("azure.blob.output.account.key"));
+						output.setAccountName(Util.getConfigProperty("azure.blob.output.account.name"));
+						output.setContainer(Util.getConfigProperty("azure.blob.output.container.prefix") + job.getClientId());
 
 						input.setBlobReferences(getSubFilenames(job, true, null));
 						output.setBlobReferences(getSubFilenames(job, false, Util.getBitcodinFolderHash(tempUrl)));
@@ -199,7 +206,7 @@ public class PollBitcodinJobStatusTask extends Task
 					catch(InvalidKeyException | URISyntaxException | StorageException e)
 					{
 						log.error("Unable to transfer subtitle files specified for job" + job.getEncodingJobId(), e);
-						job.setErrorType(Constants.STATUS_JOB_FAILED);
+						job.setErrorType(Util.getConfigProperty("job.status.failed"));
 						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
 						return;
 					}
@@ -219,16 +226,18 @@ public class PollBitcodinJobStatusTask extends Task
 			else
 			{
 				log.error("Job failed");
-				job.setStatus(Constants.STATUS_JOB_FAILED);
+				job.setStatus(Util.getConfigProperty("job.status.failed"));
 				queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
 				return;
 			}
 		}
 		catch(QueueException e)
+
 		{
 			log.error("PollBitcodinJob :: Queue Exception when trying to process job " + e.getMessage());
 			return;
 		}
+
 	}
 
 	private List<String> getSubFilenames(EncodingJob job, boolean isInput, String outputPath)
@@ -244,46 +253,4 @@ public class PollBitcodinJobStatusTask extends Task
 
 		return subFilenames;
 	}
-
-	//	public static void main(String[] args) throws InvalidKeyException, URISyntaxException, StorageException
-	//	{
-	//		AzureBlobInfo input = new AzureBlobInfo();
-	//		AzureBlobInfo output = new AzureBlobInfo();
-	//
-	//		EncodingJob job = new EncodingJob();
-	//
-	//		List<SubtitleInfo> subList = new ArrayList<>();
-	//
-	//		SubtitleInfo subtitleEn = new SubtitleInfo();
-	//		subtitleEn.setLangLong("English");
-	//		subtitleEn.setLangShort("en");
-	//		subtitleEn.setUrl("track_en.vtt");
-	//		subList.add(subtitleEn);
-	//
-	//		SubtitleInfo subtitleVi = new SubtitleInfo();
-	//		subtitleVi.setLangLong("Vietnamese");
-	//		subtitleVi.setLangShort("vi");
-	//		subtitleVi.setUrl("track_vi.vtt");
-	//		subList.add(subtitleVi);
-	//
-	//		job.setSubtitleList(subList);
-	//		job.setClientId(524);
-	//		job.setMediaId(848095);
-	//
-	//		String tempUrl = "http://yadayada/yadayada/48275_695ab9d2816de1f352845233839a2d03/test.xyz";
-	//
-	//		input.setAccountKey(Constants.AZURE_INPUT_ACCOUNT_KEY);
-	//		input.setAccountName(Constants.AZURE_INPUT_ACCOUNT_NAME);
-	//		input.setContainer(Constants.AZURE_INPUT_BLOB_CONTAINER_PREFIX + job.getClientId());
-	//
-	//		output.setAccountKey(Constants.AZURE_OUPUT_ACCOUNT_KEY);
-	//		output.setAccountName(Constants.AZURE_OUTPUT_ACCOUNT_NAME);
-	//		output.setContainer(Constants.AZURE_OUTPUT_BLOB_CONTAINER_PREFIX + job.getClientId());
-	//
-	//		input.setBlobReferences(getSubFilenames(job, true, null));
-	//		output.setBlobReferences(getSubFilenames(job, false, Util.getBitcodinFolderHash(tempUrl)));
-	//
-	//		Util.copyAzureBlob(input, output);
-	//
-	//	}
 }

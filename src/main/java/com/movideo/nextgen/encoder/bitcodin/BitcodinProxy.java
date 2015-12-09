@@ -10,7 +10,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
-import com.movideo.nextgen.encoder.config.Constants;
+import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 import com.movideo.nextgen.encoder.models.EncodingProfileInfo;
 import com.movideo.nextgen.encoder.models.InputConfig;
@@ -54,7 +54,7 @@ public class BitcodinProxy
 		}
 		catch(JSONException e)
 		{
-			throw new BitcodinException(Constants.STATUS_CODE_BAD_REQUEST, e.getMessage(), e);
+			throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), e.getMessage(), e);
 		}
 		return BitcodinHttpHelper.makeHttpCall("job/transfer", payload.toString(), "post");
 	}
@@ -70,7 +70,7 @@ public class BitcodinProxy
 		}
 		catch(JSONException e)
 		{
-			throw new BitcodinException(Constants.STATUS_CODE_BAD_REQUEST, e.getMessage(), e);
+			throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), e.getMessage(), e);
 		}
 
 		String apiPath = null;
@@ -108,7 +108,7 @@ public class BitcodinProxy
 
 			if(response == null)
 			{
-				throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, "Response is null", null);
+				throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), "Response is null", null);
 			}
 
 			log.debug("Created input id: " + response.get("inputId"));
@@ -118,7 +118,7 @@ public class BitcodinProxy
 
 			if(response == null)
 			{
-				throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, "Response is null", null);
+				throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), "Response is null", null);
 			}
 
 			long outputId = response.getLong("outputId");
@@ -133,8 +133,8 @@ public class BitcodinProxy
 
 			if(drmConfigMap != null)
 			{
-				payload.put(Constants.BITCODIN_CENC_DRM_CONFIG_KEY, drmConfigMap.get(Constants.CENC_ENCRYPTION_TYPE));
-				payload.put(Constants.BITCODIN_HLS_DRM_CONFIG_KEY, drmConfigMap.get(Constants.FPS_ENCRYPTION_TYPE));
+				payload.put(Util.getConfigProperty("bitcodin.drm.cenc.drmConfig.key"), drmConfigMap.get(Util.getConfigProperty("bitcodin.drm.cenc.encryptionType")));
+				payload.put(Util.getConfigProperty("bitcodin.drm.hls.drmConfig.key"), drmConfigMap.get(Util.getConfigProperty("bitcodin.drm.fps.encryptionType")));
 			}
 
 			log.info("BitcodinProxy: createJob() -> Payload sent to Bitcodin create Job API :" + payload.toString());
@@ -151,7 +151,7 @@ public class BitcodinProxy
 		}
 		catch(JSONException e)
 		{
-			throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, "Job creation failed", e);
+			throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), "Job creation failed", e);
 		}
 
 	}
@@ -177,7 +177,7 @@ public class BitcodinProxy
 		}
 		catch(JSONException e)
 		{
-			throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, "Job creation failed", e);
+			throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), "Job creation failed", e);
 		}
 
 	}
@@ -203,44 +203,10 @@ public class BitcodinProxy
 		}
 		catch(JSONException e)
 		{
-			throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, "An error occured while creating input", e);
+			throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), "An error occured while creating input", e);
 		}
 
 	}
-
-	/*
-	 * Request for an output creation to Bitcodin. To be used if no output id is
-	 * pre-created.
-	 */
-
-	//    public static int preCreateOutputfromConfig(String type, String name, String accountName, String accountKey,
-	//	    String container, String prefix) {
-	//
-	//	JSONObject response;
-	//	int outputId = -1;
-	//
-	//	try {
-	//	    response = BitcodinProxy.createAzureOutput(type, name, accountName, accountKey, container, prefix);
-	//	    log.debug("BitcodinProxy: preCreateOutputfromConfig() ->createAzureOutput response from Bitcodin");
-	//
-	//	} catch (BitcodinException e) {
-	//	    log.error("An error occured while creating output", e);
-	//
-	//	    return outputId;
-	//	}
-	//
-	//	try {
-	//	    outputId = response.getInt("outputId");
-	//	    log.debug("BitcodinProxy: preCreateOutputfromConfig() ->output Id is" + response.get("outputId"));
-	//
-	//	} catch (JSONException e) {
-	//	    log.error("Bitcodin Error:Could not create new output", e);
-	//	    return outputId;
-	//
-	//	}
-	//
-	//	return outputId;
-	//    }
 
 	public static JSONObject createAzureOutput(OutputConfig config) throws BitcodinException
 	{
@@ -272,7 +238,7 @@ public class BitcodinProxy
 		catch(JSONException e)
 		{
 
-			throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, "Output creation failed", e);
+			throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), "Output creation failed", e);
 		}
 
 	}
@@ -326,7 +292,7 @@ public class BitcodinProxy
 		catch(JSONException e)
 		{
 
-			throw new BitcodinException(Constants.STATUS_CODE_SERVER_ERROR, "Encoding profile creation failed", e);
+			throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), "Encoding profile creation failed", e);
 		}
 
 	}

@@ -14,7 +14,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.movideo.nextgen.encoder.config.Constants;
+import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.models.DRMInfo;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 
@@ -22,12 +22,14 @@ public class CastlabsProxy
 {
 
 	private static final Logger log = LogManager.getLogger();
+	private static Map<String, String> authHeaders = new HashMap<>();
+	private static Map<String, String> frontendHeaders = new HashMap<>();
 
 	public static String getCasToken(String targetService) throws CastlabsException
 	{
 
-		HttpResponse response = CastlabsHttpHelper.getRawHttpResponse(Constants.CASTLABS_CAS_AUTH_URL,
-				Constants.CASTLABS_AUTH_PAYLOAD, "post", getAuthHeaders());
+		HttpResponse response = CastlabsHttpHelper.getRawHttpResponse(Util.getConfigProperty("castlabs.cas.auth.url"),
+				Util.getConfigProperty("castlabs.auth.payload"), "post", getAuthHeaders());
 
 		// Response code has to be 201
 		if(response.getStatusLine().getStatusCode() != 201)
@@ -116,7 +118,7 @@ public class CastlabsProxy
 				if(job.isReprocess())
 				{
 					//TODO: Handle FPS
-					String url = Constants.CASTLABS_CENC_KEY_DELETE_URL;
+					String url = Util.getConfigProperty("castlabs.cenc.key.delete.url");
 
 					url = url.replace("[assetId]", job.getProductId()).replace("[variantId]", job.getVariant());
 					url = url + "?ticket="
@@ -129,11 +131,11 @@ public class CastlabsProxy
 
 				}
 
-				if(manifestType.equalsIgnoreCase(Constants.MPEG_DASH_MANIFEST_TYPE))
+				if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.mpd.manifest.type")))
 				{
 					ingestKeysObject.put("keyId", keysMap.get("kidBase64"));
 					asset.put("type", "CENC");
-					drmInfo.setLicenseUrl(Constants.CENC_LA_URL);
+					drmInfo.setLicenseUrl(Util.getConfigProperty("castlabs.cenc.laUrl"));
 				}
 				else
 				{
@@ -149,8 +151,8 @@ public class CastlabsProxy
 				}
 
 				ingestKeysObject.put("key", keysMap.get("keyBase64"));
-				ingestKeysObject.put("streamType", Constants.CASTLABS_DEFAULT_STREAM_TYPE);
-				ingestKeysObject.put("algorithm", Constants.CASTLABS_DEFAULT_ALGORITHM);
+				ingestKeysObject.put("streamType", Util.getConfigProperty("castlabs.stream.default.type"));
+				ingestKeysObject.put("algorithm", Util.getConfigProperty("castlabs.default.encryption.algorithm"));
 
 				ingestKeys.put(ingestKeysObject);
 
@@ -165,8 +167,8 @@ public class CastlabsProxy
 
 				log.debug("PAYLOAD: \n" + payload);
 
-				String url = Constants.CASTLABS_KEY_INGEST_URL + "?ticket="
-						+ getCasToken(Constants.CASTLABS_KEY_INGEST_URL);
+				String url = Util.getConfigProperty("castlabs.key.ingest.url") + "?ticket="
+						+ getCasToken(Util.getConfigProperty("castlabs.key.ingest.url"));
 
 				JSONObject responseJson = CastlabsHttpHelper.makeHttpCall(url, payload.toString(), "post",
 						getFrontEndHeaders());
@@ -175,7 +177,7 @@ public class CastlabsProxy
 
 				checkErrors(keys);
 
-				if(manifestType.equalsIgnoreCase(Constants.MPEG_DASH_MANIFEST_TYPE))
+				if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.mpd.manifest.type")))
 				{
 					String pssh = getPsshBoxFromResponse(keys);
 					log.debug("PSSH from Castlabs is: " + pssh);
@@ -194,26 +196,29 @@ public class CastlabsProxy
 		}
 		catch(JSONException e)
 		{
-			throw new CastlabsException(Constants.STATUS_CODE_SERVER_ERROR, "Invalid Castlabs request/response", e);
+			throw new CastlabsException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), "Invalid Castlabs request/response", e);
 		}
 
 	}
 
 	private static Map<String, String> getAuthHeaders()
 	{
-		Map<String, String> headers = new HashMap<String, String>();
-		headers.put("Accept", "*/*");
-		headers.put("Content-Type", "application/x-www-form-urlencoded");
-		return headers;
+		if(authHeaders.size() == 0)
+		{
+			authHeaders = Util.getHeadersMap(Util.getConfigProperty("castlabs.headers.auth"));
+		}
+
+		return authHeaders;
 	}
 
 	private static Map<String, String> getFrontEndHeaders()
 	{
-		Map<String, String> headers = new HashMap<String, String>();
-		headers.put("Accept", "application/json");
-		headers.put("Content-Type", "application/json");
-		headers.put("Host", Constants.CASTLABS_KEY_INGEST_HOST_HEADER);
-		return headers;
+		if(frontendHeaders.size() == 0)
+		{
+			frontendHeaders = Util.getHeadersMap(Util.getConfigProperty("castlabs.headers.frontend"));
+		}
+
+		return frontendHeaders;
 
 	}
 
@@ -239,7 +244,7 @@ public class CastlabsProxy
 				return currentObject.getString("psshBoxContent");
 			}
 		}
-		throw new CastlabsException(Constants.STATUS_CODE_SERVER_ERROR, "Unable to find PSSH info in response", null);
+		throw new CastlabsException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), "Unable to find PSSH info in response", null);
 
 	}
 
@@ -258,36 +263,10 @@ public class CastlabsProxy
 					errorBuffer.append(", ");
 				}
 			}
-			throw new CastlabsException(Constants.STATUS_CODE_BAD_REQUEST, errorBuffer.toString(), null);
+			throw new CastlabsException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), errorBuffer.toString(), null);
 
 		}
 
-	}
-
-	//	public static void main(String[] args) throws CastlabsException
-	//	{
-	//		Map<String, String> keyMap = new HashMap<>();
-	//		keyMap.put("keyHex", "f497a34c2bf83a2074d2571f68b15bff");
-	//		keyMap.put("kidHex", "8d6b13727a19df7af6901606426f96fc");
-	//		keyMap.put("keyBase64", "9JejTCv4OiB00lcfaLFb/w==");
-	//		keyMap.put("kidBase64", "jWsTcnoZ33r2kBYGQm+W/A==");
-	//
-	//		EncodingJob job = new EncodingJob();
-	//		job.setClientId(524);
-	//		job.setManifestTypes(new String[] { "mpd", "m3u8" });
-	//		job.setProductId("12345");
-	//		job.setProtectionRequired(true);
-	//		job.setVariant("HD");
-	//
-	//		ingestKeys(keyMap, job);
-	//	}
-
-	public static void main(String[] args) throws JSONException, CastlabsException
-	{
-		JSONObject responseJson = new JSONObject("{\"assets\":[{\"assetId\":\"999999999\",\"variantId\":\"HD\",\"keys\":[{\"streamType\":\"VIDEO_AUDIO\",\"keyId\":\"3P512rbc/HkbKhbC1HWsFw==\",\"cencResponse\":{\"systemId\":{\"edef8ba9-79d6-4ace-a3c8-27dcd51d21ed\":{\"name\":\"Widevine\",\"psshBoxContent\":\"CAESENz+ddq23Px5GyoWwtR1rBcaCGNhc3RsYWJzIhgzUDUxMnJiYy9Ia2JLaGJDMUhXc0Z3PT0yB2RlZmF1bHQ=\"},\"9A04F079-9840-4286-AB92-E65BE0885F95\":{\"name\":\"PlayReady\",\"xmlFragment\":\"<mspr:pro>QAMAAAEAAQA2AzwAVwBSAE0ASABFAEEARABFAFIAIAB4AG0AbABuAHMAPQAiAGgAdAB0AHAAOgAvAC8AcwBjAGgAZQBtAGEAcwAuAG0AaQBjAHIAbwBzAG8AZgB0AC4AYwBvAG0ALwBEAFIATQAvADIAMAAwADcALwAwADMALwBQAGwAYQB5AFIAZQBhAGQAeQBIAGUAYQBkAGUAcgAiACAAdgBlAHIAcwBpAG8AbgA9ACIANAAuADAALgAwAC4AMAAiAD4APABEAEEAVABBAD4APABQAFIATwBUAEUAQwBUAEkATgBGAE8APgA8AEsARQBZAEwARQBOAD4AMQA2ADwALwBLAEUAWQBMAEUATgA+ADwAQQBMAEcASQBEAD4AQQBFAFMAQwBUAFIAPAAvAEEATABHAEkARAA+ADwALwBQAFIATwBUAEUAQwBUAEkATgBGAE8APgA8AEsASQBEAD4AMgBuAFgAKwAzAE4AeQAyAGUAZgB3AGIASwBoAGIAQwAxAEgAVwBzAEYAdwA9AD0APAAvAEsASQBEAD4APABMAEEAXwBVAFIATAA+AGgAdAB0AHAAcwA6AC8ALwBsAGkAYwAuAHMAdABhAGcAaQBuAGcALgBkAHIAbQB0AG8AZABhAHkALgBjAG8AbQAvAGwAaQBjAGUAbgBzAGUALQBwAHIAbwB4AHkALQBoAGUAYQBkAGUAcgBhAHUAdABoAC8AZAByAG0AdABvAGQAYQB5AC8AUgBpAGcAaAB0AHMATQBhAG4AYQBnAGUAcgAuAGEAcwBtAHgAPAAvAEwAQQBfAFUAUgBMAD4APABMAFUASQBfAFUAUgBMAD4AaAB0AHQAcABzADoALwAvAHcAdwB3AC4AbQBpAGMAcgBvAHMAbwBmAHQALgBjAG8AbQAvAHAAbABhAHkAcgBlAGEAZAB5AC8APAAvAEwAVQBJAF8AVQBSAEwAPgA8AEMASABFAEMASwBTAFUATQA+AG0ARQBKAEUAdABoAHYASQBJADcAdwA9ADwALwBDAEgARQBDAEsAUwBVAE0APgA8AC8ARABBAFQAQQA+ADwALwBXAFIATQBIAEUAQQBEAEUAUgA+AA==</mspr:pro>\",\"psshBoxContent\":\"QAMAAAEAAQA2AzwAVwBSAE0ASABFAEEARABFAFIAIAB4AG0AbABuAHMAPQAiAGgAdAB0AHAAOgAvAC8AcwBjAGgAZQBtAGEAcwAuAG0AaQBjAHIAbwBzAG8AZgB0AC4AYwBvAG0ALwBEAFIATQAvADIAMAAwADcALwAwADMALwBQAGwAYQB5AFIAZQBhAGQAeQBIAGUAYQBkAGUAcgAiACAAdgBlAHIAcwBpAG8AbgA9ACIANAAuADAALgAwAC4AMAAiAD4APABEAEEAVABBAD4APABQAFIATwBUAEUAQwBUAEkATgBGAE8APgA8AEsARQBZAEwARQBOAD4AMQA2ADwALwBLAEUAWQBMAEUATgA+ADwAQQBMAEcASQBEAD4AQQBFAFMAQwBUAFIAPAAvAEEATABHAEkARAA+ADwALwBQAFIATwBUAEUAQwBUAEkATgBGAE8APgA8AEsASQBEAD4AMgBuAFgAKwAzAE4AeQAyAGUAZgB3AGIASwBoAGIAQwAxAEgAVwBzAEYAdwA9AD0APAAvAEsASQBEAD4APABMAEEAXwBVAFIATAA+AGgAdAB0AHAAcwA6AC8ALwBsAGkAYwAuAHMAdABhAGcAaQBuAGcALgBkAHIAbQB0AG8AZABhAHkALgBjAG8AbQAvAGwAaQBjAGUAbgBzAGUALQBwAHIAbwB4AHkALQBoAGUAYQBkAGUAcgBhAHUAdABoAC8AZAByAG0AdABvAGQAYQB5AC8AUgBpAGcAaAB0AHMATQBhAG4AYQBnAGUAcgAuAGEAcwBtAHgAPAAvAEwAQQBfAFUAUgBMAD4APABMAFUASQBfAFUAUgBMAD4AaAB0AHQAcABzADoALwAvAHcAdwB3AC4AbQBpAGMAcgBvAHMAbwBmAHQALgBjAG8AbQAvAHAAbABhAHkAcgBlAGEAZAB5AC8APAAvAEwAVQBJAF8AVQBSAEwAPgA8AEMASABFAEMASwBTAFUATQA+AG0ARQBKAEUAdABoAHYASQBJADcAdwA9ADwALwBDAEgARQBDAEsAUwBVAE0APgA8AC8ARABBAFQAQQA+ADwALwBXAFIATQBIAEUAQQBEAEUAUgA+AA==\"}}}}]}]}");
-		JSONArray keys = responseJson.getJSONArray("assets").getJSONObject(0).getJSONArray("keys");
-		checkErrors(keys);
-		log.debug(getPsshBoxFromResponse(keys));
 	}
 
 }

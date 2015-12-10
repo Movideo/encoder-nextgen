@@ -3,7 +3,8 @@ MAINTAINER DevOps <ops@movideo.com>
 
 ADD build/distributions/encoder-nextgen-1.0.zip /opt/encoder-nextgen-1.0.zip
 
-RUN apt-get -y install unzip
+RUN sudo apt-get update
+RUN apt-get -y install zip
 
 RUN /usr/bin/unzip -q encoder-nextgen-1.0.zip && \
     rm encoder-nextgen-1.0.zip && \

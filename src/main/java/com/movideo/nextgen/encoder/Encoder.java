@@ -114,7 +114,7 @@ public class Encoder
 		try
 		{
 			applicationConfig = builder.getConfiguration();
-			log.debug("Successfully loaded properties");
+			log.info("Successfully loaded properties. Environment: " + applicationConfig.getString("environment.type"));
 
 		}
 		catch(ConfigurationException cex)

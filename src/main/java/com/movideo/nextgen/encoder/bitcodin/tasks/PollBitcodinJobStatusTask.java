@@ -1,25 +1,33 @@
 package com.movideo.nextgen.encoder.bitcodin.tasks;
 
-import com.movideo.nextgen.encoder.dao.EncodeDAO;
+import java.net.URISyntaxException;
+import java.security.InvalidKeyException;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.google.gson.JsonSyntaxException;
+import com.microsoft.azure.storage.StorageException;
+import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
 import com.movideo.nextgen.common.multithreading.Task;
 import com.movideo.nextgen.common.queue.QueueException;
 import com.movideo.nextgen.common.queue.QueueManager;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinProxy;
 import com.movideo.nextgen.encoder.common.Util;
-import com.movideo.nextgen.encoder.config.Constants;
+import com.movideo.nextgen.encoder.dao.EncodeDAO;
+import com.movideo.nextgen.encoder.models.AzureBlobInfo;
+import com.movideo.nextgen.encoder.models.EncodeSummary;
 import com.movideo.nextgen.encoder.models.EncodingJob;
+import com.movideo.nextgen.encoder.models.Manifest;
 
 /**
- * Polls Bitcodin for the status of the id specified in the input If the status
- * is completed or errored, moves it to the appropriate list If not, replaces
- * the message back in the list for round-robin polling
+ * Polls Bitcodin for the status of the id specified in the input If the status is completed or errored, moves it to the appropriate list If not,
+ * replaces the message back in the list for round-robin polling
  *
  * @author yramasundaram
  */
@@ -28,7 +36,7 @@ public class PollBitcodinJobStatusTask extends Task
 
 	private static final Logger log = LogManager.getLogger();
 
-	private String pendingListName = Constants.REDIS_PENDING_LIST, workingListName = Constants.REDIS_PENDING_WORKING_LIST, errorListName = Constants.REDIS_POLL_ERROR_LIST, successListName = Constants.REDIS_FINISHED_LIST;
+	private String pendingListName = Util.getConfigProperty("redis.poller.input.list"), workingListName = Util.getConfigProperty("redis.poller.working.list"), errorListName = Util.getConfigProperty("redis.poller.error.list"), successListName = Util.getConfigProperty("redis.poller.success.list");
 
 	private EncodeDAO encodeDAO;
 
@@ -38,7 +46,8 @@ public class PollBitcodinJobStatusTask extends Task
 		this.encodeDAO = encodeDAO;
 	}
 
-	@Override public void run()
+	@Override
+	public void run()
 	{
 
 		log.debug("PollBitcodinJobStatus : run() -> Executing poller");
@@ -55,12 +64,10 @@ public class PollBitcodinJobStatusTask extends Task
 			{
 				job = Util.getBitcodinJobFromJSON(jobString);
 			}
-			catch (JsonSyntaxException e)
+			catch(JsonSyntaxException e)
 			{
 				log.error("Could not extract bitcodin job from JSON Object", e);
 				queueManager.moveQueues(workingListName, errorListName, jobString, null);
-				// Util.moveJobToNextList(redisPool, workingListName,
-				// errorListName, jobString, jobString);
 				return;
 			}
 
@@ -73,44 +80,159 @@ public class PollBitcodinJobStatusTask extends Task
 				log.debug("PollBitcodinJobStatus : run() -> Response Status is: " + status);
 
 			}
-			catch (BitcodinException | JSONException e)
+			catch(BitcodinException | JSONException e)
 			{
 				log.error("Encoding failed for the job id " + job.getEncodingJobId(), e);
-				job.setErrorType(Constants.STATUS_JOB_FAILED);
+				job.setErrorType(Util.getConfigProperty("job.status.failed"));
 				queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-				// Util.moveJobToNextList(redisPool, workingListName,
-				// errorListName, jobString, job.toString());
 				return;
 			}
 
-			if (status != null && (status.equalsIgnoreCase("Created") || status.equalsIgnoreCase("Enqueued") || status.equalsIgnoreCase("In Progress")))
+			if(status != null && (status.equalsIgnoreCase("Created") || status.equalsIgnoreCase("Enqueued") || status.equalsIgnoreCase("In Progress")))
 			{
+				//If there are no other items on the input queue, prevent this message from flooding bitcodin
+				if(queueManager.getQueueLength(pendingListName) == 0)
+				{
+					try
+					{
+						Thread.sleep(Integer.parseInt(Util.getConfigProperty("thread.sleep.time")));
+					}
+					catch(InterruptedException e)
+					{
+						log.info("Thread wait time interrupted");
+					}
+				}
+
 				// Put back in the pending list to check back later
 				queueManager.moveQueues(workingListName, pendingListName, jobString, job.toString());
-				// Util.moveJobToNextList(redisPool, workingListName,
-				// pendingListName, jobString, job.toString());
 
 			}
-			else if (status != null && status.equalsIgnoreCase("Finished"))
+			else if(status != null && status.equalsIgnoreCase("Finished"))
 			{
+				//Job completed. Process subtitles if needed
+
+				List<SubtitleInfo> subtitles = job.getSubtitleList();
+				if(subtitles != null)
+				{
+					long jobId = job.getEncodingJobId();
+					String[] manifestTypes = job.getManifestTypes();
+					if(manifestTypes == null || manifestTypes.length == 0)
+					{
+						log.error("Unable to create manifest with subs for job id " + job.getEncodingJobId(), new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), "Manifest array is empty", null));
+						job.setErrorType(Util.getConfigProperty("job.status.failed"));
+						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+						return;
+					}
+					List<Manifest> manifestUrlList = new ArrayList<>();
+					String tempUrl = "";
+
+					for(String manifestType : manifestTypes)
+					{
+						//TODO: Find a way to generalize processing of other subtitle types
+						try
+						{
+							String outputManifestName = jobId + "_subs." + manifestType;
+							response = BitcodinProxy.createManifestWithSubs(jobId, subtitles, outputManifestName, manifestType, "vtt");
+							log.debug("Response from create subtitle call: " + response);
+							String urlKey;
+							Manifest manifest = new Manifest();
+
+							if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.mpd.manifest.type")))
+							{
+								urlKey = manifestType + "Url";
+								manifest.setType(manifestType);
+							}
+							else if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.hls.manifest.type")))
+							{
+								urlKey = Util.getConfigProperty("stream.hls.type") + "Url";
+								manifest.setType(Util.getConfigProperty("stream.hls.manifest.type"));
+							}
+							else
+							{
+								throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), "Unsupported manifest type", null);
+							}
+
+							if(response.has(urlKey))
+							{
+								tempUrl = response.getString(urlKey);
+								manifest.setUrl(Util.getManifestUrl(job, tempUrl));
+								manifestUrlList.add(manifest);
+							}
+							else
+							{
+								throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), "Unable to retrieve manifest url with subtitles!", null);
+							}
+						}
+						catch(BitcodinException | JSONException e)
+						{
+							log.error("Unable to create manifest with subs for job id " + job.getEncodingJobId(), e);
+							job.setErrorType(Util.getConfigProperty("job.status.failed"));
+							queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+							return;
+						}
+					}
+					// Copy bitcodin output to Azure blob
+					try
+					{
+						BitcodinProxy.transferToAzure(jobId, job.getOutputId());
+					}
+					catch(BitcodinException e)
+					{
+						log.error("Unable to transfer files after subtitle processing for job" + job.getEncodingJobId(), e);
+						job.setErrorType(Util.getConfigProperty("job.status.failed"));
+						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+						return;
+					}
+					// Copy subtitle files over from origin blob to destination blob
+					try
+					{
+						AzureBlobInfo input = new AzureBlobInfo();
+						AzureBlobInfo output = new AzureBlobInfo();
+
+						input.setAccountKey(Util.getConfigProperty("azure.blob.input.account.key"));
+						input.setAccountName(Util.getConfigProperty("azure.blob.input.account.name"));
+						input.setContainer(Util.getConfigProperty("azure.blob.input.container.prefix") + job.getClientId());
+
+						output.setAccountKey(Util.getConfigProperty("azure.blob.output.account.key"));
+						output.setAccountName(Util.getConfigProperty("azure.blob.output.account.name"));
+						output.setContainer(Util.getConfigProperty("azure.blob.output.container.prefix") + job.getClientId());
+
+						input.setBlobReferences(getSubFilenames(job, true, null));
+						output.setBlobReferences(getSubFilenames(job, false, Util.getBitcodinFolderHash(tempUrl)));
+
+						Util.copyAzureBlob(input, output);
+
+					}
+					catch(InvalidKeyException | URISyntaxException | StorageException e)
+					{
+						log.error("Unable to transfer subtitle files specified for job" + job.getEncodingJobId(), e);
+						job.setErrorType(Util.getConfigProperty("job.status.failed"));
+						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+						return;
+					}
+					EncodeSummary encodeSummary = job.getEncodeSummary();
+					encodeSummary.setManifests(manifestUrlList.toArray(new Manifest[manifestUrlList.size()]));
+					log.info("Encode Summary is: " + encodeSummary);
+					job.setEncodeSummary(encodeSummary);
+					//TODO: Poll Bitcodin to check transfer status
+
+				}
+
 				queueManager.moveQueues(workingListName, successListName, jobString, job.toString());
 				log.debug("Encode summary for this job is: " + job.getEncodeSummary());
 				encodeDAO.storeEncodeSummary(job.getEncodeSummary());
-				// Util.moveJobToNextList(redisPool, workingListName,
-				// successListName, jobString, job.toString());
 
 			}
 			else
 			{
 				log.error("Job failed");
-				job.setStatus(Constants.STATUS_JOB_FAILED);
+				job.setStatus(Util.getConfigProperty("job.status.failed"));
 				queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-				// Util.moveJobToNextList(redisPool, workingListName,
-				// errorListName, jobString, job.toString());
 				return;
 			}
 		}
-		catch (QueueException e)
+		catch(QueueException e)
+
 		{
 			log.error("PollBitcodinJob :: Queue Exception when trying to process job " + e.getMessage());
 			return;
@@ -118,4 +240,17 @@ public class PollBitcodinJobStatusTask extends Task
 
 	}
 
+	private List<String> getSubFilenames(EncodingJob job, boolean isInput, String outputPath)
+	{
+		List<String> subFilenames = new ArrayList<>();
+
+		List<SubtitleInfo> formattedInputSubs = Util.formatSubUrls(job.getSubtitleList(), job.getClientId(), job.getMediaId(), isInput, outputPath, false);
+		for(SubtitleInfo info : formattedInputSubs)
+		{
+			log.debug("Current subtitle url: " + info.getUrl());
+			subFilenames.add(info.getUrl());
+		}
+
+		return subFilenames;
+	}
 }

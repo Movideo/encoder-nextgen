@@ -1,79 +1,94 @@
 package com.movideo.nextgen.encoder;
 
+import java.io.IOException;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.FileBasedConfiguration;
+import org.apache.commons.configuration2.PropertiesConfiguration;
+import org.apache.commons.configuration2.builder.FileBasedConfigurationBuilder;
+import org.apache.commons.configuration2.builder.fluent.Parameters;
+import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.movideo.nextgen.common.multithreading.TaskFactory;
 import com.movideo.nextgen.common.multithreading.ThreadPoolManager;
 import com.movideo.nextgen.common.queue.QueueManager;
 import com.movideo.nextgen.common.queue.redis.RedisQueueConnectionConfig;
 import com.movideo.nextgen.common.queue.redis.RedisQueueManager;
-import com.movideo.nextgen.encoder.bitcodin.tasks.BitcodingTaskFactory;
+import com.movideo.nextgen.encoder.bitcodin.tasks.BitcodinTaskFactory;
 import com.movideo.nextgen.encoder.bitcodin.tasks.TaskType;
-import com.movideo.nextgen.encoder.config.AppConfig;
-import com.movideo.nextgen.encoder.config.Constants;
+import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.dao.EncodeDAO;
-import com.movideo.nextgen.encoder.models.EncodingJob;
 import com.movideo.nextgen.encoder.test.SampleGenerator;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.Protocol;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-
 /**
- * Test class with main method that does all the initialization. Should be
- * converted to an orchestrator class, called by Dropbox processor
+ * Test class with main method that does all the initialization. Should be converted to an orchestrator class, called by Dropbox processor
  *
  * @author yramasundaram
  */
 public class Encoder
 {
 
-	private static EncodingJob job;
 	private static final Logger log = LogManager.getLogger();
+	private static Configuration applicationConfig;
 
 	public static void main(String[] args) throws InterruptedException, IOException
 	{
-		AppConfig appConfig;
-		ClassLoader loader = Thread.currentThread().getContextClassLoader();
-		try (InputStream in = loader.getResourceAsStream("config.properties"))
+		initProperties();
+
+		if(applicationConfig.size() == 0)
 		{
-			Properties prop = new Properties();
-			prop.load(in);
-			appConfig = new AppConfig(prop);
+			printErrorAndExit("Could not load properties. Aborting now!");
+		}
+		Util.setApplicationConfig(applicationConfig);
+		JedisPool redisPool;
+		final String environment = Util.getConfigProperty("environment.type");
+
+		int corePoolSize = Integer.parseInt(Util.getConfigProperty("threadpool.corePoolSize")),
+				maxPoolSize = Integer.parseInt(Util.getConfigProperty("threadpool.maxPoolSize")),
+				keepAliveTime = Integer.parseInt(Util.getConfigProperty("threadpool.keepAliveTime"));
+
+		if(environment.equalsIgnoreCase("development"))
+		{
+			redisPool = new JedisPool(new JedisPoolConfig(), Util.getConfigProperty("redis.host"),
+					Integer.parseInt(Util.getConfigProperty("redis.port")), Protocol.DEFAULT_TIMEOUT);
+		}
+		else
+		{
+			redisPool = new JedisPool(new JedisPoolConfig(), Util.getConfigProperty("redis.host"),
+					Integer.parseInt(Util.getConfigProperty("redis.port")), Protocol.DEFAULT_TIMEOUT, Util.getConfigProperty("redis.password"));
 		}
 
-		JedisPool redisPool = new JedisPool(new JedisPoolConfig(), appConfig.getRedisConnectionString(),
-				appConfig.getRedisPort(), Protocol.DEFAULT_TIMEOUT, appConfig.getRedisPassword());
 		RedisQueueConnectionConfig config = new RedisQueueConnectionConfig();
 		config.setPool(redisPool);
 		QueueManager queueManager = new RedisQueueManager(config);
 
-		EncodeDAO encodeDAO = new EncodeDAO(appConfig.getDatabaseConnectionString(), appConfig.getDatabaseName());
+		EncodeDAO encodeDAO = new EncodeDAO(Util.getConfigProperty("couch.url"), Util.getConfigProperty("couch.dbName"));
 
-		TaskFactory taskFactory = new BitcodingTaskFactory(queueManager, encodeDAO);
-
-		initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(),
-				TimeUnit.MINUTES, TaskType.PROCESS_ENCODING_REQUEST.name(), Constants.REDIS_ENCODE_REQUEST_LIST, taskFactory, queueManager);
+		TaskFactory taskFactory = new BitcodinTaskFactory(queueManager, encodeDAO);
 
 		log.debug("About to start threadpool manager for Bitcodin job creation");
-		initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(), TimeUnit.MINUTES,
-				TaskType.CREATE_ENCONDING_JOB.name(), Constants.REDIS_INPUT_LIST, taskFactory, queueManager);
+		initMessageListener(corePoolSize, maxPoolSize, keepAliveTime,
+				TimeUnit.MINUTES, TaskType.PROCESS_ENCODING_REQUEST.name(), Util.getConfigProperty("redis.encodeOrchestrator.input.list"), taskFactory, queueManager);
+
+		initMessageListener(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.MINUTES,
+				TaskType.CREATE_ENCONDING_JOB.name(), Util.getConfigProperty("redis.encoder.input.list"), taskFactory, queueManager);
 
 		log.debug("About to start threadpool manager for Bitcodin job poller");
-		initMessageListener(appConfig.getCorePoolSize(), appConfig.getMaxPoolSize(), appConfig.getKeepAliveTime(), TimeUnit.MINUTES,
-				TaskType.POLL_ENCODING_JOB_STATUS.name(), Constants.REDIS_PENDING_LIST, taskFactory, queueManager);
+		initMessageListener(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.MINUTES,
+				TaskType.POLL_ENCODING_JOB_STATUS.name(), Util.getConfigProperty("redis.poller.input.list"), taskFactory, queueManager);
 
-//		addSampleJobs(redisPool, appConfig);
+		SampleGenerator.addSampleRequest(redisPool);
 
-//		SampleGenerator.addSampleRequest(redisPool, appConfig);
 	}
-
 
 	private static void initMessageListener(int corePoolSize, int maxPoolSize, long keepAliveTime, TimeUnit unit,
 			String workerClassName, String listToWatch, TaskFactory taskFactory, QueueManager queueManager)
@@ -81,9 +96,32 @@ public class Encoder
 
 		ThreadPoolExecutor executor = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, unit, new LinkedBlockingDeque<Runnable>());
 
-
 		ThreadPoolManager manager = new ThreadPoolManager(queueManager, taskFactory, listToWatch, executor, workerClassName);
 		manager.start();
 	}
 
+	private static void initProperties() throws IOException
+	{
+		Parameters params = new Parameters();
+		FileBasedConfigurationBuilder<FileBasedConfiguration> builder = new FileBasedConfigurationBuilder<FileBasedConfiguration>(PropertiesConfiguration.class)
+				.configure(params.properties()
+						.setFileName("config.properties"));
+		try
+		{
+			applicationConfig = builder.getConfiguration();
+			log.debug("Successfully loaded properties");
+
+		}
+		catch(ConfigurationException cex)
+		{
+			printErrorAndExit("Could load application properties. Aborting now!");
+		}
+	}
+
+	private static void printErrorAndExit(String errMessage)
+	{
+		log.fatal(errMessage);
+		System.out.println(errMessage);
+		System.exit(1);
+	}
 }

@@ -86,7 +86,7 @@ public class Encoder
 		initMessageListener(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.MINUTES,
 				TaskType.POLL_ENCODING_JOB_STATUS.name(), Util.getConfigProperty("redis.poller.input.list"), taskFactory, queueManager);
 
-		SampleGenerator.addSampleRequest(redisPool);
+		//SampleGenerator.addSampleRequest(redisPool);
 
 	}
 
@@ -102,10 +102,15 @@ public class Encoder
 
 	private static void initProperties() throws IOException
 	{
+		String configPath = System.getenv("ENCODER_CONFIG_FILE_PATH");
+		if(configPath == null)
+		{
+			printErrorAndExit("Could load application properties. Aborting now!");
+		}
 		Parameters params = new Parameters();
 		FileBasedConfigurationBuilder<FileBasedConfiguration> builder = new FileBasedConfigurationBuilder<FileBasedConfiguration>(PropertiesConfiguration.class)
 				.configure(params.properties()
-						.setFileName("config.properties"));
+						.setFileName(configPath + "config.properties"));
 		try
 		{
 			applicationConfig = builder.getConfiguration();

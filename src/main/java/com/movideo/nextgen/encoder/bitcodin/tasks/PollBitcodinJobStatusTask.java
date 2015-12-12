@@ -1,5 +1,6 @@
 package com.movideo.nextgen.encoder.bitcodin.tasks;
 
+import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
@@ -200,10 +201,10 @@ public class PollBitcodinJobStatusTask extends Task
 						input.setBlobReferences(getSubFilenames(job, true, null));
 						output.setBlobReferences(getSubFilenames(job, false, Util.getBitcodinFolderHash(tempUrl)));
 
-						Util.copyAzureBlob(input, output);
+						Util.copyAzureBlockBlob(input, output);
 
 					}
-					catch(InvalidKeyException | URISyntaxException | StorageException e)
+					catch(InvalidKeyException | URISyntaxException | StorageException | IOException e)
 					{
 						log.error("Unable to transfer subtitle files specified for job" + job.getEncodingJobId(), e);
 						job.setErrorType(Util.getConfigProperty("job.status.failed"));

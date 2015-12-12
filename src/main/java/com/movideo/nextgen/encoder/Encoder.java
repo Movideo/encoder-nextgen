@@ -23,7 +23,6 @@ import com.movideo.nextgen.encoder.bitcodin.tasks.BitcodinTaskFactory;
 import com.movideo.nextgen.encoder.bitcodin.tasks.TaskType;
 import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.dao.EncodeDAO;
-import com.movideo.nextgen.encoder.test.SampleGenerator;
 
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;

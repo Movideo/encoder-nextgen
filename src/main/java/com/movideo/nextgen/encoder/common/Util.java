@@ -1,5 +1,8 @@
 package com.movideo.nextgen.encoder.common;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
@@ -169,7 +172,7 @@ public class Util
 		return bitcodinFolderHash;
 	}
 
-	public static void copyAzureBlob(AzureBlobInfo source, AzureBlobInfo destination) throws URISyntaxException, StorageException, InvalidKeyException
+	public static void copyAzureBlockBlob(AzureBlobInfo source, AzureBlobInfo destination) throws URISyntaxException, StorageException, InvalidKeyException, IOException
 	{
 
 		final String sourceStorageConnectionString = buildAzureConnectionString(source);
@@ -194,14 +197,23 @@ public class Util
 
 		for(int counter = 0; counter < countFiles; counter++)
 		{
-			CloudBlockBlob sourceBlob = sourceContainer.getBlockBlobReference(source.getBlobReferences().get(counter));
 			log.debug("Source blob reference: " + source.getBlobReferences().get(counter));
-
-			CloudBlockBlob destBlob = destContainer.getBlockBlobReference(destination.getBlobReferences().get(counter));
 			log.debug("Destination blob reference: " + destination.getBlobReferences().get(counter));
 
-			destBlob.startCopyFromBlob(sourceBlob);
-			log.debug("Started copying " + source.getBlobReferences().get(counter) + "to " + destination.getContainer());
+			/* Download file contents */
+			CloudBlockBlob sourceBlob = sourceContainer.getBlockBlobReference(source.getBlobReferences().get(counter));
+			ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+			sourceBlob.download(outputStream);
+
+			String contents = new String(outputStream.toByteArray());
+			log.debug("Downloaded source file contents. Contents:\n" + contents);
+
+			/* Upload to destination */
+			CloudBlockBlob destBlob = destContainer.getBlockBlobReference(destination.getBlobReferences().get(counter));
+			ByteArrayInputStream inputStream = new ByteArrayInputStream(contents.getBytes());
+			destBlob.upload(inputStream, contents.length());
+
+			log.debug("Uploaded " + source.getBlobReferences().get(counter) + " to " + destination.getContainer());
 
 		}
 
@@ -225,29 +237,4 @@ public class Util
 		}
 		return headersMap;
 	}
-
-	//	public static void main(String[] args) throws IOException
-	//	{
-	//		Parameters params = new Parameters();
-	//		FileBasedConfigurationBuilder<FileBasedConfiguration> builder = new FileBasedConfigurationBuilder<FileBasedConfiguration>(PropertiesConfiguration.class)
-	//				.configure(params.properties()
-	//						.setFileName("config.properties"));
-	//		try
-	//		{
-	//			Configuration config = builder.getConfiguration();
-	//			log.debug("Value of property is: " + config.getString("bitcodin.request.headers"));
-	//			Map<String, String> map = getHeadersMap(config.getString("bitcodin.request.headers"));
-	//			for(Map.Entry<String, String> kv : map.entrySet())
-	//			{
-	//				log.debug("Key: " + kv.getKey() + ", Value: " + kv.getValue());
-	//			}
-	//
-	//		}
-	//		catch(ConfigurationException cex)
-	//		{
-	//			System.exit(1);
-	//		}
-	//
-	//	}
-
 }

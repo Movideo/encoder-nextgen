@@ -14,6 +14,7 @@ import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.movideo.ingester.IngestThreadPoolManager;
 import com.movideo.nextgen.common.multithreading.TaskFactory;
 import com.movideo.nextgen.common.multithreading.ThreadPoolManager;
 import com.movideo.nextgen.common.queue.QueueManager;
@@ -86,7 +87,19 @@ public class Encoder
 				TaskType.POLL_ENCODING_JOB_STATUS.name(), Util.getConfigProperty("redis.poller.input.list"), taskFactory, queueManager);
 
 		//SampleGenerator.addSampleRequest(redisPool);
+		log.debug("About to start ingest threadpool manager for ingestion poller");
+		initBlobPoller(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.MINUTES,
+				TaskType.POLL_ENCODING_JOB_STATUS.name(), Util.getConfigProperty("ingest.poller.output.list"), taskFactory, queueManager);
 
+	}
+
+	private static void initBlobPoller(int corePoolSize, int maxPoolSize, int keepAliveTime, TimeUnit unit, String name, String configProperty, TaskFactory taskFactory, QueueManager queueManager)
+	{
+		ThreadPoolExecutor executor = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, unit, new LinkedBlockingDeque<Runnable>());
+
+		IngestThreadPoolManager manager = new IngestThreadPoolManager(queueManager, executor);
+		manager.start();
+	
 	}
 
 	private static void initMessageListener(int corePoolSize, int maxPoolSize, long keepAliveTime, TimeUnit unit,
@@ -102,6 +115,7 @@ public class Encoder
 	private static void initProperties() throws IOException
 	{
 		String configPath = System.getenv("ENCODER_CONFIG_FILE_PATH");
+		System.out.println(configPath);
 		if(configPath == null)
 		{
 			printErrorAndExit("Could load application properties. Aborting now!");

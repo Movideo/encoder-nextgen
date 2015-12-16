@@ -15,6 +15,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.movideo.ingester.IngestThreadPoolManager;
+import com.movideo.ingester.IngesterTaskFactory;
 import com.movideo.nextgen.common.multithreading.TaskFactory;
 import com.movideo.nextgen.common.multithreading.ThreadPoolManager;
 import com.movideo.nextgen.common.queue.QueueManager;
@@ -74,6 +75,7 @@ public class Encoder
 		EncodeDAO encodeDAO = new EncodeDAO(Util.getConfigProperty("couch.url"), Util.getConfigProperty("couch.dbName"));
 
 		TaskFactory taskFactory = new BitcodinTaskFactory(queueManager, encodeDAO);
+		TaskFactory ingesterTaskFactory = new IngesterTaskFactory(queueManager);
 
 		log.debug("About to start threadpool manager for Bitcodin job creation");
 		initMessageListener(corePoolSize, maxPoolSize, keepAliveTime,
@@ -91,6 +93,12 @@ public class Encoder
 		initBlobPoller(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.MINUTES,
 				TaskType.POLL_ENCODING_JOB_STATUS.name(), Util.getConfigProperty("ingest.poller.output.list"), taskFactory, queueManager);
 
+	
+		log.debug("About to start threadpool manager for Xml ingester parser");
+		initMessageListener(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.MINUTES,
+				TaskType.PARSE_XML.name(), Util.getConfigProperty("redis.xml.parser.input.list"), ingesterTaskFactory, queueManager);
+
+	
 	}
 
 	private static void initBlobPoller(int corePoolSize, int maxPoolSize, int keepAliveTime, TimeUnit unit, String name, String configProperty, TaskFactory taskFactory, QueueManager queueManager)

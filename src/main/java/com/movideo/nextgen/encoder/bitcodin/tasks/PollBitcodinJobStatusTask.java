@@ -113,7 +113,7 @@ public class PollBitcodinJobStatusTask extends Task
 				//Job completed. Process subtitles if needed
 
 				List<SubtitleInfo> subtitles = job.getSubtitleList();
-				if(subtitles != null)
+				if(subtitles != null && subtitles.size() > 0)
 				{
 					long jobId = job.getEncodingJobId();
 					String[] manifestTypes = job.getManifestTypes();

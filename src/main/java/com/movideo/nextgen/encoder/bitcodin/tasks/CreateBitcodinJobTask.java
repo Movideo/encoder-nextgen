@@ -1,6 +1,7 @@
 package com.movideo.nextgen.encoder.bitcodin.tasks;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
@@ -10,6 +11,7 @@ import org.json.JSONObject;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.JsonSyntaxException;
+import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
 import com.movideo.nextgen.common.multithreading.Task;
 import com.movideo.nextgen.common.queue.QueueException;
 import com.movideo.nextgen.common.queue.QueueManager;
@@ -52,6 +54,32 @@ public class CreateBitcodinJobTask extends Task
 		encodeSummary.put("variant", job.getVariant());
 		encodeSummary.put("mediaConfigurations", createJobResponse.getJSONObject("input").getJSONArray("mediaConfigurations"));
 		JSONArray manifests = new JSONArray();
+
+		List<SubtitleInfo> subtitles = job.getSubtitleList();
+
+		// No subtitles, need to set the encode summary output path here
+
+		if(subtitles == null || subtitles.size() == 0)
+		{
+			String outputPath = createJobResponse.getString("outputPath");
+
+			for(String manifestType : job.getManifestTypes())
+			{
+				JSONObject manifestLocation = new JSONObject();
+				if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.mpd.manifest.type")))
+				{
+					manifestLocation.put("type", manifestType);
+				}
+				else
+				{
+					manifestLocation.put("type", Util.getConfigProperty("stream.hls.type"));
+				}
+
+				manifestLocation.put("url", outputPath + "/" + job.getEncodingJobId() + "." + manifestType);
+				manifests.add(manifestLocation);
+			}
+
+		}
 
 		encodeSummary.put("manifests", manifests);
 		encodeSummary.put("streamType", job.isProtectionRequired() ? "protected" : "unprotected");
@@ -131,6 +159,7 @@ public class CreateBitcodinJobTask extends Task
 				response = BitcodinProxy.createJob(inputConfig, outputConfig, job, drmConfigMap);
 				log.debug("CreateBitcodinJob : run() -> Got back the response from Bitcodin");
 				job.setStatus(Util.getConfigProperty("job.status.submitted"));
+
 				if(hasSubs)
 				{
 					try

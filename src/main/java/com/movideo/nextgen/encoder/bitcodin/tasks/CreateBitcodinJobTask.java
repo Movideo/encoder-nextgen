@@ -100,7 +100,7 @@ public class CreateBitcodinJobTask extends Task
 			// first entry
 			// which needs to be subsquently updated at each point.
 			job.setStatus(Util.getConfigProperty("job.status.submitted"));
-			boolean hasSubs = (job.getSubtitleList() != null) ? true : false;
+			boolean hasSubs = (job.getSubtitleList() != null && job.getSubtitleList().size() > 0) ? true : false;
 
 			if(job.isProtectionRequired())
 			{

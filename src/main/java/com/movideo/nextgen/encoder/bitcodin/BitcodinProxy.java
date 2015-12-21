@@ -96,7 +96,7 @@ public class BitcodinProxy
 
 		try
 		{
-			boolean hasSubs = (job.getSubtitleList() != null) ? true : false;
+			boolean hasSubs = (job.getSubtitleList() != null && job.getSubtitleList().size() > 0) ? true : false;
 			log.debug("Job hasSubs? " + hasSubs);
 			payload.put("encodingProfileId", job.getEncodingProfileId());
 			payload.put("manifestTypes", job.getManifestTypes());
@@ -241,6 +241,11 @@ public class BitcodinProxy
 			throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.internal.server.error")), "Output creation failed", e);
 		}
 
+	}
+
+	public static JSONObject getJobCount(String status) throws BitcodinException
+	{
+		return BitcodinHttpHelper.makeHttpCall("jobs/1/" + status, null, "get");
 	}
 
 	public static JSONObject createEncodingProfile(String profileName, EncodingProfileInfo encodingProfileInfo)

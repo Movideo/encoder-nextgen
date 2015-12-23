@@ -85,6 +85,8 @@ public class ProcessEncodeRequestTask extends Task
 			job.setProtectionRequired(streams.isProtectionRequired());
 			job.setReprocess(encodeInfo.isReprocessing());
 			job.setStatus(Util.getConfigProperty("job.status.new"));
+			//TODO: Has to be decided at runtime based on the type of clip and the volume
+			job.setSpeed("standard");
 			log.debug("Ready to post job request to the next list. Job string is: " + job.toString());
 			try
 			{

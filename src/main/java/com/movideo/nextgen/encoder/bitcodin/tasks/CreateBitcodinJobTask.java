@@ -19,6 +19,7 @@ import com.movideo.nextgen.encoder.bitcodin.BitcodinDRMConfigBuilder;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinException;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinProxy;
 import com.movideo.nextgen.encoder.common.Util;
+import com.movideo.nextgen.encoder.dao.EncodeDAO;
 import com.movideo.nextgen.encoder.models.EncodeSummary;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 import com.movideo.nextgen.encoder.models.InputConfig;
@@ -35,12 +36,14 @@ public class CreateBitcodinJobTask extends Task
 {
 
 	private static final Logger log = LogManager.getLogger();
+	private EncodeDAO encodeDao;
 
 	private String workingListName = Util.getConfigProperty("redis.encoder.working.list"), errorListName = Util.getConfigProperty("redis.encoder.error.list"), successListName = Util.getConfigProperty("redis.encoder.success.list");
 
-	public CreateBitcodinJobTask(QueueManager queueManager, String jobString)
+	public CreateBitcodinJobTask(QueueManager queueManager, EncodeDAO encodeDao, String jobString)
 	{
 		super(queueManager, jobString);
+		this.encodeDao = encodeDao;
 	}
 
 	private EncodeSummary getEncodeSummary(EncodingJob job, JSONObject createJobResponse) throws JSONException, IOException
@@ -65,17 +68,20 @@ public class CreateBitcodinJobTask extends Task
 
 			for(String manifestType : job.getManifestTypes())
 			{
+				String manifestPath;
 				JSONObject manifestLocation = new JSONObject();
 				if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.mpd.manifest.type")))
 				{
 					manifestLocation.put("type", manifestType);
+					manifestPath = outputPath + "/" + Util.getConfigProperty("bitcodin.job.output.path.mpd.prefix");
 				}
 				else
 				{
 					manifestLocation.put("type", Util.getConfigProperty("stream.hls.type"));
+					manifestPath = outputPath + "/" + Util.getConfigProperty("bitcodin.job.output.path.hls.prefix");
 				}
 
-				manifestLocation.put("url", outputPath + "/" + job.getEncodingJobId() + "." + manifestType);
+				manifestLocation.put("url", manifestPath + "/" + job.getEncodingJobId() + "." + manifestType);
 				manifests.add(manifestLocation);
 			}
 
@@ -103,7 +109,7 @@ public class CreateBitcodinJobTask extends Task
 		// TODO: Replace all Sysouts with proper log statements. Retain key
 		// information for debug purposes
 
-		log.debug("CreateBitcodinJob : run() -> Job string is: " + jobString);
+		log.info("CreateBitcodinJob : run() -> Job string is: " + jobString);
 
 		try
 		{
@@ -117,6 +123,15 @@ public class CreateBitcodinJobTask extends Task
 				log.error("Could not extract bitcodin job from job string", e);
 				queueManager.moveQueues(workingListName, errorListName, jobString, null);
 				return;
+			}
+
+			List<EncodeSummary> mediaEncodings = encodeDao.getExistingMedia(job.getMediaId(), job.getVariant());
+			// This media has already been encoded. Need to delete previous summaries
+			if(!mediaEncodings.isEmpty())
+			{
+				log.info("Media already exists. Removing previous encoding summary: \n" + mediaEncodings.get(0));
+				EncodeSummary summary = mediaEncodings.get(0);
+				encodeDao.deleteExistingMedia(summary.getId(), summary.getRevision());
 			}
 
 			InputConfig inputConfig = new InputConfig(Util.getConfigProperty("bitcodin.input.azure.type"), Util.getConfigProperty("azure.blob.input.account.name"), Util.getConfigProperty("azure.blob.input.account.key"), Util.getConfigProperty("azure.blob.input.container.prefix") + job.getClientId());
@@ -184,7 +199,7 @@ public class CreateBitcodinJobTask extends Task
 				return;
 			}
 
-			log.debug("Response string is: " + response.toString());
+			log.info("Response string is: " + response.toString());
 
 			//TODO: Error handling. Assumes Bitcodin will always return success response if response code is a non-error code
 

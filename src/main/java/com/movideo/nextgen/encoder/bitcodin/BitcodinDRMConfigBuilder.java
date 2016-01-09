@@ -25,7 +25,7 @@ public class BitcodinDRMConfigBuilder
 	public static Map<String, JSONObject> getDRMConfigMap(EncodingJob job) throws BitcodinException
 	{
 
-		Map<String, DRMInfo> drmInfoMap;
+		Map<String, DRMInfo> drmInfoMap = null;
 		Map<String, JSONObject> drmConfigMap = new HashMap<>();
 
 		try
@@ -56,7 +56,7 @@ public class BitcodinDRMConfigBuilder
 			{
 				try
 				{
-					drmConfigMap.put(Util.getConfigProperty("bitcodin.drm.hls.drmConfig.key"), getHlsConfig(drmInfoMap.get(manifestType), job));
+					drmConfigMap.put(Util.getConfigProperty("bitcodin.drm.fps.encryptionType"), getHlsConfig(drmInfoMap.get(manifestType), job));
 				}
 				catch(JSONException e)
 				{
@@ -116,12 +116,43 @@ public class BitcodinDRMConfigBuilder
 		return hlsEncryptionConfig;
 	}
 
-	// public static void main(String[] args) throws BitcodinException {
-	// EncodingJob job = new EncodingJob();
-	// job.setProductId("Abracadabra123456");
-	// job.setDrmType(Constants.CENC_ENCRYPTION_TYPE);
-	// job.setVariant("HD");
-	// System.out.println(getDRMConfigJSON(job));
-	// }
+	/*	public static void main(String[] args) throws BitcodinException, IOException
+		{
+			initProperties();
+			EncodingJob job = new EncodingJob();
+			String[] manifestTypes = { "mpd", "m3u8" };
+			job.setManifestTypes(manifestTypes);
+			Map<String, JSONObject> map = getDRMConfigMap(job);
+			for(Map.Entry<String, JSONObject> entry : map.entrySet())
+			{
+				log.info(entry.getKey() + ": " + entry.getValue());
+			}
+		}
+	
+		private static void initProperties() throws IOException
+		{
+			//String configPath = System.getenv("ENCODER_CONFIG_FILE_PATH");
+			Configuration applicationConfig;
+			String configPath = "/Users/yramasundaram/";
+			if(configPath == null)
+			{
+				//			printErrorAndExit("Could load application properties. Aborting now!");
+			}
+			Parameters params = new Parameters();
+			FileBasedConfigurationBuilder<FileBasedConfiguration> builder = new FileBasedConfigurationBuilder<FileBasedConfiguration>(PropertiesConfiguration.class)
+					.configure(params.properties()
+							.setFileName(configPath + "config.properties"));
+			try
+			{
+				applicationConfig = builder.getConfiguration();
+				log.info("Successfully loaded properties. Environment: " + applicationConfig.getString("environment.type"));
+				Util.setApplicationConfig(applicationConfig);
+	
+			}
+			catch(ConfigurationException cex)
+			{
+				//			printErrorAndExit("Could load application properties. Aborting now!");
+			}
+		}*/
 
 }

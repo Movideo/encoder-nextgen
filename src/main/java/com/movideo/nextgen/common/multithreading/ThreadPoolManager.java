@@ -20,6 +20,8 @@ public class ThreadPoolManager extends Thread
 	private static final Logger log = LogManager.getLogger();
 	private final TaskFactory taskFactory;
 	private QueueManager queueManager;
+	private Throttler throttler;
+	private boolean throttled;
 
 	String listToWatch, workerInputList, taskName;
 	ThreadPoolExecutor executor;
@@ -32,7 +34,7 @@ public class ThreadPoolManager extends Thread
 	 * @param executor
 	 *            - ThreadPoolExecutor to be used for submitting the tasks
 	 */
-	public ThreadPoolManager(QueueManager queueManager, TaskFactory taskFactory, String listToWatch, ThreadPoolExecutor executor, String taskName)
+	public ThreadPoolManager(QueueManager queueManager, TaskFactory taskFactory, String listToWatch, ThreadPoolExecutor executor, String taskName, Throttler throttler)
 	{
 		this.taskFactory = taskFactory;
 		this.listToWatch = listToWatch;
@@ -40,6 +42,8 @@ public class ThreadPoolManager extends Thread
 		this.executor = executor;
 		this.taskName = taskName;
 		this.queueManager = queueManager;
+		this.throttler = throttler;
+		this.throttled = throttler == null ? false : true;
 	}
 
 	private Runnable getTaskInstance(String jobString)
@@ -58,6 +62,45 @@ public class ThreadPoolManager extends Thread
 			System.exit(1);
 		}
 		return null;
+	}
+
+	private boolean isThrottleNeeded()
+	{
+		log.debug("About to call throttle from " + taskName);
+		return(throttled ? throttler.isThrottleNeeded() : false);
+	}
+
+	private void powerNap(long time)
+	{
+		try
+		{
+			Thread.sleep(time);
+		}
+		catch(InterruptedException e)
+		{
+			log.error("Unable to sleep in this restless world!", e);
+		}
+	}
+
+	private long getQueueLength()
+	{
+		long queueLength;
+		while(true)
+		{
+			try
+			{
+				queueLength = queueManager.getQueueLength(listToWatch);
+				break;
+			}
+			catch(QueueException qe)
+			{
+				// This happens when the thread times out after inactivity for a long time. So sleep and resume
+				log.error("Read timed out when trying to read from " + listToWatch + "! Attempting to retry after 5 minutes");
+				powerNap(5 * 60 * 1000);
+				log.info("Trying to connect to " + listToWatch + " after 5 minutes sleep");
+			}
+		}
+		return queueLength;
 	}
 
 	@Override
@@ -91,7 +134,8 @@ public class ThreadPoolManager extends Thread
 			/* New jobs */
 			try
 			{
-				while(queueManager.getQueueLength(listToWatch) > 0)
+
+				while(getQueueLength() > 0 && !isThrottleNeeded())
 				{
 
 					// Assumes that the task class already knows that the job source
@@ -108,17 +152,33 @@ public class ThreadPoolManager extends Thread
 					if(task == null)
 					{
 						log.fatal("Cannot instantiate worker");
-						return;
+						continue;
 					}
 
 					executor.submit(task);
+				}
+
+				// Throttling needed per the previous condition. Sleep for a significant amount of time and wait for jobs to free up
+				while(getQueueLength() > 0 && isThrottleNeeded())
+				{
+					log.info("Workers busy. Taking a 15 minute power nap");
+					powerNap(15 * 60 * 1000);
+
+				}
+
+				//If this job is throttled, introduce an artificial delay for the actual requests to get created.
+				//Ex: Create Bitcodin job takes about a couple of minutes to get created because of input & output creation calls involved
+				if(throttled)
+				{
+					log.info("Throttled job. Taking a 5 minute power nap");
+					powerNap(15 * 60 * 1000);
 				}
 			}
 			catch(QueueException e)
 			{
 				// TODO Auto-generated catch block
 				log.fatal("Queue Exception: " + e.getMessage());
-				return;
+				System.exit(1);
 			}
 		}
 	}

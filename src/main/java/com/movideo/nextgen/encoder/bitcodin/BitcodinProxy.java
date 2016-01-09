@@ -84,7 +84,7 @@ public class BitcodinProxy
 		}
 		//		String apiPath = "manifest/" + manifestType + "/" + subtitleType;
 
-		log.debug("Payload in create subtitle call: " + payload);
+		log.info("Payload in create subtitle call: " + payload);
 		return BitcodinHttpHelper.makeHttpCall(apiPath, payload.toString(), "post");
 	}
 
@@ -141,7 +141,7 @@ public class BitcodinProxy
 			response = BitcodinHttpHelper.makeHttpCall("job/create", payload.toString(), "post");
 			if(hasSubs)
 			{
-				log.debug("Job has subs. Adding output id " + outputId + " to response!");
+				log.info("Job has subs. Adding output id " + outputId + " to response!");
 				response.put("outputId", outputId);
 			}
 			log.debug("BitcodinProxy: createJob() -> Returning response from Bitcodin: \n" + response.toString());

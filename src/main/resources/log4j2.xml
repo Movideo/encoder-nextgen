@@ -13,7 +13,7 @@
     </RollingFile>
   </Appenders>
   <Loggers>
-  	<Logger name="com.movideo.nextgen" level="DEBUG">
+  	<Logger name="com.movideo.nextgen" level="INFO">
   		<AppenderRef ref="RollingFile"/>
   	</Logger>
     <Root level="WARN">

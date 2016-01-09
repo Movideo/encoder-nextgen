@@ -86,109 +86,205 @@ public class CastlabsProxy
 	public static Map<String, DRMInfo> ingestKeys(EncodingJob job) throws CastlabsException
 	{
 
-		DRMInfo drmInfo;
+		DRMInfo cencDrmInfo = null, hlsDrmInfo = null;
 		JSONObject payload;
 
 		JSONArray assets;
 		JSONObject asset;
 		JSONArray ingestKeys;
-		JSONObject ingestKeysObject;
+		JSONObject ingestKey;
 
 		String[] manifestTypes = job.getManifestTypes();
 		Map<String, DRMInfo> drmInfoMap = new HashMap<>();
+		String keyIngestType;
+		Map<String, String> keysMap = DRMHelper.generateKeyKidIvSet();
 
 		log.debug("Encoding job is: " + job.toString());
 
+		if(manifestTypes.length > 1)
+		{
+			keyIngestType = "COMBINED";
+		}
+		else
+		{
+			String manifestType = manifestTypes[0];
+			if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.mpd.manifest.type")))
+			{
+				keyIngestType = "CENC";
+			}
+			else
+			{
+				keyIngestType = "FPS";
+			}
+		}
+
 		try
 		{
-
-			for(String manifestType : manifestTypes)
+			if(job.isReprocess())
 			{
-				Map<String, String> keysMap = DRMHelper.generateKeyKidPair();
-				drmInfo = new DRMInfo();
-				payload = new JSONObject();
+				// This deletes all keys for this asset.
+				String url = Util.getConfigProperty("castlabs.cenc.key.delete.url");
 
-				assets = new JSONArray();
-				asset = new JSONObject();
-				ingestKeys = new JSONArray();
-				ingestKeysObject = new JSONObject();
-
-				log.debug("Current manifest type: " + manifestType);
-
-				if(job.isReprocess())
-				{
-					//TODO: Handle FPS
-					String url = Util.getConfigProperty("castlabs.cenc.key.delete.url");
-
-					url = url.replace("[assetId]", job.getProductId()).replace("[variantId]", job.getVariant());
-					url = url + "?ticket="
-							+ getCasToken(url);
-					log.debug("URL for deleting previously ingested CENC Key: " + url);
-					HttpResponse response = CastlabsHttpHelper.getRawHttpResponse(url, null, "delete",
-							getFrontEndHeaders());
-					log.info("Attempted to delete key for asset: " + job.getProductId() + ", variant: " + job.getVariant() + " and the response code is: " + response.getStatusLine().getStatusCode());
-					// Not checking specific errors here to allow just-in-case re-process requests
-
-				}
-
-				if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.mpd.manifest.type")))
-				{
-					ingestKeysObject.put("keyId", keysMap.get("kidBase64"));
-					asset.put("type", "CENC");
-					drmInfo.setLicenseUrl(Util.getConfigProperty("castlabs.cenc.laUrl"));
-				}
-				else
-				{
-					ingestKeysObject.put("iv", keysMap.get("kidBase64"));
-					asset.put("type", "FAIRPLAY");
-					// TODO: Understand how to set license URL for AES/FPS				
-				}
-
-				drmInfo.setKeys(new String[] { keysMap.get("kidHex"), keysMap.get("keyHex") });
-				for(String key : drmInfo.getKeys())
-				{
-					log.debug(key);
-				}
-
-				ingestKeysObject.put("key", keysMap.get("keyBase64"));
-				ingestKeysObject.put("streamType", Util.getConfigProperty("castlabs.stream.default.type"));
-				ingestKeysObject.put("algorithm", Util.getConfigProperty("castlabs.default.encryption.algorithm"));
-
-				ingestKeys.put(ingestKeysObject);
-
-				log.debug("Asset ID: " + job.getProductId());
-				log.debug("Variant " + job.getVariant());
-				asset.put("assetId", job.getProductId());
-				asset.put("variantId", job.getVariant());
-				asset.put("ingestKeys", ingestKeys);
-
-				assets.put(asset);
-				payload.put("assets", assets);
-
-				log.debug("PAYLOAD: \n" + payload);
-
-				String url = Util.getConfigProperty("castlabs.key.ingest.url") + "?ticket="
-						+ getCasToken(Util.getConfigProperty("castlabs.key.ingest.url"));
-
-				JSONObject responseJson = CastlabsHttpHelper.makeHttpCall(url, payload.toString(), "post",
+				url = url.replace("[assetId]", job.getProductId()).replace("[variantId]", job.getVariant());
+				url = url + "?ticket="
+						+ getCasToken(url);
+				log.info("URL for deleting previously ingested CENC Key: " + url);
+				HttpResponse response = CastlabsHttpHelper.getRawHttpResponse(url, null, "delete",
 						getFrontEndHeaders());
+				log.info("Attempted to delete key for asset: " + job.getProductId() + ", variant: " + job.getVariant() + " and the response code is: " + response.getStatusLine().getStatusCode());
+				// Not checking specific errors here to allow just-in-case re-process requests
 
-				JSONArray keys = responseJson.getJSONArray("assets").getJSONObject(0).getJSONArray("keys");
+			}
 
-				checkErrors(keys);
+			/* Example payload
+			 * {
+				"assets": [
+					{
+						"type": "FAIRPLAY",
+						"assetId": "1234-5678-9995",
+						"variantId" : "HD",
+						"ingestKeys": [
+							{
+								"streamType": "VIDEO_AUDIO",
+								"algorithm": "AES",
+								"key": "p+qMRXmM5vBxj9gcpg0pBw==",
+								"iv": "4vC/SerRgWLwsM/i2KpYoA==", --> Only for FPS and Combined FPS+CENC requests
+								"keyId" : "44bI7ScgtGfVZepG8YYVVg==" --> Only for CENC and Combined FPS+CENC requests
+							}
+						]
+					}
+				 ]
+			   }
+			 */
 
-				if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.mpd.manifest.type")))
-				{
-					String pssh = getPsshBoxFromResponse(keys);
-					log.debug("PSSH from Castlabs is: " + pssh);
-					drmInfo.setPssh(pssh);
-					drmInfoMap.put(manifestType, drmInfo);
-				}
-				else
-				{
-					drmInfoMap.put(manifestType, drmInfo);
-				}
+			payload = new JSONObject();
+			assets = new JSONArray();
 
+			log.info("Ingest Keys: Manifest types: \n");
+			for(String manifestType : job.getManifestTypes())
+			{
+				log.info(manifestType);
+			}
+
+			asset = new JSONObject();
+			asset.put("assetId", job.getProductId());
+			asset.put("variantId", job.getVariant());
+
+			asset.put("type", keyIngestType.equals("CENC") ? "CENC" : "FAIRPLAY");
+			ingestKeys = new JSONArray();
+			ingestKey = new JSONObject();
+			ingestKey.put("streamType", Util.getConfigProperty("castlabs.stream.default.type"));
+			ingestKey.put("algorithm", Util.getConfigProperty("castlabs.default.encryption.algorithm"));
+
+			// Common for all combinations
+			ingestKey.put("key", keysMap.get("keyBase64"));
+
+			if(keyIngestType.equals("CENC") || keyIngestType.equals("COMBINED"))
+			{
+				ingestKey.put("keyId", keysMap.get("kidBase64"));
+				cencDrmInfo = new DRMInfo();
+				cencDrmInfo.setKeys(new String[] { keysMap.get("kidHex"), keysMap.get("keyHex") });
+				cencDrmInfo.setLicenseUrl(Util.getConfigProperty("castlabs.cenc.laUrl"));
+			}
+
+			if(keyIngestType.equals("FAIRPLAY") || keyIngestType.equals("COMBINED"))
+			{
+				ingestKey.put("iv", keysMap.get("ivBase64"));
+				hlsDrmInfo = new DRMInfo();
+				hlsDrmInfo.setKeys(new String[] { keysMap.get("ivHex"), keysMap.get("keyHex") });
+				hlsDrmInfo.setLicenseUrl(Util.getConfigProperty("castlabs.fps.licenseUrl"));
+			}
+
+			ingestKeys.put(ingestKey);
+			asset.put("ingestKeys", ingestKeys);
+			assets.put(asset);
+			payload.put("assets", assets);
+
+			log.info("Payload to ingestKeys request: \n" + payload);
+
+			String url = Util.getConfigProperty("castlabs.key.ingest.url") + "?ticket="
+					+ getCasToken(Util.getConfigProperty("castlabs.key.ingest.url"));
+
+			JSONObject responseJson = CastlabsHttpHelper.makeHttpCall(url, payload.toString(), "post",
+					getFrontEndHeaders());
+
+			JSONArray keys = responseJson.getJSONArray("assets").getJSONObject(0).getJSONArray("keys");
+
+			checkErrors(keys);
+
+			if(keyIngestType.equals("CENC") || keyIngestType.equals("COMBINED"))
+			{
+				String pssh = getPsshBoxFromResponse(keys);
+				log.debug("PSSH from Castlabs is: " + pssh);
+				cencDrmInfo.setPssh(pssh);
+				drmInfoMap.put(Util.getConfigProperty("stream.mpd.manifest.type"), cencDrmInfo);
+			}
+			if(keyIngestType.equals("FPS") || keyIngestType.equals("COMBINED"))
+			{
+				drmInfoMap.put(Util.getConfigProperty("stream.hls.manifest.type"), hlsDrmInfo);
+			}
+
+			/*if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.mpd.manifest.type")))
+			{
+				ingestKeysObject.put("keyId", keysMap.get("kidBase64"));
+				asset.put("type", "CENC");
+				drmInfo.setLicenseUrl(Util.getConfigProperty("castlabs.cenc.laUrl"));
+			}
+			else
+			{
+				ingestKeysObject.put("iv", keysMap.get("kidBase64"));
+				asset.put("type", "FAIRPLAY");
+				// TODO: Understand how to set license URL for AES/FPS				
+			}
+			
+			drmInfo.setKeys(new String[] { keysMap.get("kidHex"), keysMap.get("keyHex") });
+			for(String key : drmInfo.getKeys())
+			{
+				log.debug(key);
+			}
+			
+			ingestKeysObject.put("key", keysMap.get("keyBase64"));
+			ingestKeysObject.put("streamType", Util.getConfigProperty("castlabs.stream.default.type"));
+			ingestKeysObject.put("algorithm", Util.getConfigProperty("castlabs.default.encryption.algorithm"));
+			
+			ingestKeys.put(ingestKeysObject);
+			
+			log.debug("Asset ID: " + job.getProductId());
+			log.debug("Variant " + job.getVariant());
+			asset.put("assetId", job.getProductId());
+			asset.put("variantId", job.getVariant());
+			asset.put("ingestKeys", ingestKeys);
+			
+			assets.put(asset);
+			payload.put("assets", assets);
+			
+			log.debug("PAYLOAD: \n" + payload);
+			
+			String url = Util.getConfigProperty("castlabs.key.ingest.url") + "?ticket="
+					+ getCasToken(Util.getConfigProperty("castlabs.key.ingest.url"));
+			
+			JSONObject responseJson = CastlabsHttpHelper.makeHttpCall(url, payload.toString(), "post",
+					getFrontEndHeaders());
+			
+			JSONArray keys = responseJson.getJSONArray("assets").getJSONObject(0).getJSONArray("keys");
+			
+			checkErrors(keys);
+			
+			if(manifestType.equalsIgnoreCase(Util.getConfigProperty("stream.mpd.manifest.type")))
+			{
+				String pssh = getPsshBoxFromResponse(keys);
+				log.debug("PSSH from Castlabs is: " + pssh);
+				drmInfo.setPssh(pssh);
+				drmInfoMap.put(manifestType, drmInfo);
+			}
+			else
+			{
+				drmInfoMap.put(manifestType, drmInfo);
+			}*/
+			log.info("Entries in DRMInfoMap:");
+			for(Map.Entry<String, DRMInfo> entry : drmInfoMap.entrySet())
+			{
+				log.info(entry.getKey() + ": " + entry.getValue());
 			}
 
 			return drmInfoMap;

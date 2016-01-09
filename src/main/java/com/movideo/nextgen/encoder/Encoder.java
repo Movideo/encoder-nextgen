@@ -19,10 +19,12 @@ import com.movideo.nextgen.common.multithreading.ThreadPoolManager;
 import com.movideo.nextgen.common.queue.QueueManager;
 import com.movideo.nextgen.common.queue.redis.RedisQueueConnectionConfig;
 import com.movideo.nextgen.common.queue.redis.RedisQueueManager;
+import com.movideo.nextgen.encoder.bitcodin.concurrency.BitcodinThrottler;
 import com.movideo.nextgen.encoder.bitcodin.tasks.BitcodinTaskFactory;
 import com.movideo.nextgen.encoder.bitcodin.tasks.TaskType;
 import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.dao.EncodeDAO;
+import com.movideo.nextgen.encoder.test.SampleGenerator;
 
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -85,7 +87,7 @@ public class Encoder
 		initMessageListener(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.MINUTES,
 				TaskType.POLL_ENCODING_JOB_STATUS.name(), Util.getConfigProperty("redis.poller.input.list"), taskFactory, queueManager);
 
-		//SampleGenerator.addSampleRequest(redisPool);
+		SampleGenerator.addSampleRequest(redisPool);
 
 	}
 
@@ -93,15 +95,17 @@ public class Encoder
 			String workerClassName, String listToWatch, TaskFactory taskFactory, QueueManager queueManager)
 	{
 
+		BitcodinThrottler throttler = workerClassName.equals(TaskType.CREATE_ENCONDING_JOB.name()) ? new BitcodinThrottler() : null;
 		ThreadPoolExecutor executor = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, unit, new LinkedBlockingDeque<Runnable>());
 
-		ThreadPoolManager manager = new ThreadPoolManager(queueManager, taskFactory, listToWatch, executor, workerClassName);
+		ThreadPoolManager manager = new ThreadPoolManager(queueManager, taskFactory, listToWatch, executor, workerClassName, throttler);
 		manager.start();
 	}
 
 	private static void initProperties() throws IOException
 	{
 		String configPath = System.getenv("ENCODER_CONFIG_FILE_PATH");
+		//String configPath = "/Users/yramasundaram/";
 		if(configPath == null)
 		{
 			printErrorAndExit("Could load application properties. Aborting now!");

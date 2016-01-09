@@ -87,7 +87,7 @@ public class ProcessEncodeRequestTask extends Task
 			job.setStatus(Util.getConfigProperty("job.status.new"));
 			//TODO: Has to be decided at runtime based on the type of clip and the volume
 			job.setSpeed("standard");
-			log.debug("Ready to post job request to the next list. Job string is: " + job.toString());
+			log.info("Ready to post job request to the next list. Job string is: " + job.toString());
 			try
 			{
 				queueManager.moveQueues(workingListName, successListName, jobString, job.toString());

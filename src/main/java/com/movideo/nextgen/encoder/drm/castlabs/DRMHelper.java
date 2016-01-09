@@ -59,22 +59,31 @@ public class DRMHelper
 		throw new IllegalArgumentException("Output format " + outputFormat + " is not supported");
 	}
 
-	public static Map<String, String> generateKeyKidPair()
+	public static Map<String, String> generateKeyKidIvSet()
 	{
+		String[] mapKeys = { "key", "kid", "iv" };
 		Map<String, String> keyMap = new HashMap<>();
 
+		Map<String, String> tempMap;
+
+		for(String mapKey : mapKeys)
+		{
+			tempMap = generateHexBase64Pair();
+			keyMap.put(mapKey + "Hex", tempMap.get("hex"));
+			keyMap.put(mapKey + "Base64", tempMap.get("base64"));
+		}
+
+		return keyMap;
+	}
+
+	private static Map<String, String> generateHexBase64Pair()
+	{
+		Map<String, String> keyMap = new HashMap<>();
 		byte[] keyArray = KeyUtils.createRandomByteArray(16);
 		String keyHex = generateKey(BinaryFormat.HEX, BinaryFormat.HEX, keyArray);
 		String keyBase64 = generateKey(BinaryFormat.B64, BinaryFormat.B64, keyArray);
-		keyArray = KeyUtils.createRandomByteArray(16);
-		String kidHex = generateKey(BinaryFormat.HEX, BinaryFormat.HEX, keyArray);
-		String kidBase64 = generateKey(BinaryFormat.B64, BinaryFormat.B64, keyArray);
-
-		keyMap.put("keyHex", keyHex);
-		keyMap.put("kidHex", kidHex);
-		keyMap.put("keyBase64", keyBase64);
-		keyMap.put("kidBase64", kidBase64);
-
+		keyMap.put("hex", keyHex);
+		keyMap.put("base64", keyBase64);
 		return keyMap;
 	}
 
@@ -92,8 +101,8 @@ public class DRMHelper
 
 	public static void main(String[] args)
 	{
-		Map<String, String> keys = generateKeyKidPair();
-		log.debug("KeyId Hex: " + keys.get("keyHex") + ", Kid Hex: " + keys.get("kidHex") + ", KeyId Base64: " + keys.get("keyBase64") + ", Kid Base64 : " + keys.get("kidBase64"));
+		Map<String, String> keys = generateKeyKidIvSet();
+		log.info("KeyId Hex: " + keys.get("keyHex") + ", Kid Hex: " + keys.get("kidHex") + ", KeyId Base64: " + keys.get("keyBase64") + ", Kid Base64 : " + keys.get("kidBase64"));
 	}
 
 }

@@ -91,13 +91,13 @@ public class SampleGenerator
 		}
 
 		StreamInfo streamInfo = new StreamInfo();
-		//		streamInfo.setProtectionRequired(true);
+		streamInfo.setProtectionRequired(true);
 		streamInfo.setManifestType(manifestTypes);
 		streamInfo.setAudioConfig(audioConfList);
 		streamInfo.setVideoConfig(videoConfList);
 
 		EncodeInfo encodeInfo = new EncodeInfo();
-		encodeInfo.setReprocessing(Boolean.parseBoolean(Util.getConfigProperty("sample.test.job.drm")));
+		encodeInfo.setReprocessing(Boolean.parseBoolean(Util.getConfigProperty("sample.test.job.reprocessing")));
 		encodeInfo.setEncodingProfileId(Integer.parseInt(Util.getConfigProperty("sample.test.job.encodingProfileId")));
 		encodeInfo.setStreamInfo(streamInfo);
 

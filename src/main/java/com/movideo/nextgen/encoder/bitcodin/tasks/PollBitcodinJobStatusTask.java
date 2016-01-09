@@ -220,7 +220,7 @@ public class PollBitcodinJobStatusTask extends Task
 				}
 
 				queueManager.moveQueues(workingListName, successListName, jobString, job.toString());
-				log.debug("Encode summary for this job is: " + job.getEncodeSummary());
+				log.info("Encode summary for this job is: " + job.getEncodeSummary());
 				encodeDAO.storeEncodeSummary(job.getEncodeSummary());
 
 			}

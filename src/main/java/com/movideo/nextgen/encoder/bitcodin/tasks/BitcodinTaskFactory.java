@@ -27,7 +27,7 @@ public class BitcodinTaskFactory implements TaskFactory
 		switch(taskType)
 		{
 			case CREATE_ENCONDING_JOB:
-				return new CreateBitcodinJobTask(queueManager, jobString);
+				return new CreateBitcodinJobTask(queueManager, encodeDao, jobString);
 			case POLL_ENCODING_JOB_STATUS:
 				return new PollBitcodinJobStatusTask(queueManager, encodeDao, jobString);
 			case PROCESS_ENCODING_REQUEST:

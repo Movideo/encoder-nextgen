@@ -13,6 +13,13 @@ public class EncodeRequest
 	private List<EncodeInfo> encodeInfo;
 	private List<SubtitleInfo> subtitleInfo;
 	private String speed;
+	private boolean cdnSyncRequired;
+
+	public EncodeRequest()
+	{
+		//TODO: Turning on cdn sync by default. Needs to come from CouchDB client settings
+		cdnSyncRequired = true;
+	}
 
 	public int getClientId()
 	{
@@ -92,6 +99,16 @@ public class EncodeRequest
 	public void setSpeed(String speed)
 	{
 		this.speed = speed;
+	}
+
+	public boolean isCdnSyncRequired()
+	{
+		return cdnSyncRequired;
+	}
+
+	public void setCdnSyncRequired(boolean cdnSyncRequired)
+	{
+		this.cdnSyncRequired = cdnSyncRequired;
 	}
 
 }

@@ -50,6 +50,7 @@ public class SampleGenerator
 		request.setVariant(Util.getConfigProperty("sample.test.job.variant"));
 		request.setInputFilename(Util.getConfigProperty("sample.test.job.inputFileName"));
 		request.setSpeed(Util.getConfigProperty("sample.test.job.speed"));
+		request.setCdnSyncRequired(Boolean.parseBoolean(Util.getConfigProperty("sample.test.job.cdn.sync.required")));
 
 		List<SubtitleInfo> subList = new ArrayList<>();
 

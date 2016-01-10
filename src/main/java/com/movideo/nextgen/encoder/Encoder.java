@@ -24,7 +24,6 @@ import com.movideo.nextgen.encoder.bitcodin.tasks.BitcodinTaskFactory;
 import com.movideo.nextgen.encoder.bitcodin.tasks.TaskType;
 import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.dao.EncodeDAO;
-import com.movideo.nextgen.encoder.test.SampleGenerator;
 
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -87,7 +86,7 @@ public class Encoder
 		initMessageListener(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.MINUTES,
 				TaskType.POLL_ENCODING_JOB_STATUS.name(), Util.getConfigProperty("redis.poller.input.list"), taskFactory, queueManager);
 
-		SampleGenerator.addSampleRequest(redisPool);
+		//		SampleGenerator.addSampleRequest(redisPool);
 
 	}
 
@@ -105,7 +104,7 @@ public class Encoder
 	private static void initProperties() throws IOException
 	{
 		String configPath = System.getenv("ENCODER_CONFIG_FILE_PATH");
-		//String configPath = "/Users/yramasundaram/";
+		//		String configPath = "/Users/yramasundaram/";
 		if(configPath == null)
 		{
 			printErrorAndExit("Could load application properties. Aborting now!");

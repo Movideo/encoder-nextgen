@@ -159,7 +159,7 @@ public class Util
 		}
 
 		StringBuffer buffer = new StringBuffer(getConfigProperty("azure.blob.output.url.prefix")).append(getConfigProperty("azure.blob.output.container.prefix")).append(job.getClientId()).append("/");
-		buffer.append(getConfigProperty("azure.blob.media.path.prefix")).append("/").append(job.getMediaId()).append("/").append(tokens[tokenCount - 2]).append("/").append("/").append(tokens[tokenCount - 1]);
+		buffer.append(getConfigProperty("azure.blob.media.path.prefix")).append("/").append(job.getMediaId()).append("/").append(tokens[tokenCount - 2]).append("/").append(tokens[tokenCount - 1]);
 
 		log.debug("Manifest URL : " + buffer);
 		return buffer.toString();

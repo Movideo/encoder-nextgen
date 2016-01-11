@@ -67,6 +67,7 @@ public class ProcessEncodeRequestTask extends Task
 			job.setMediaId(encodeRequest.getMediaId());
 			job.setProductId(encodeRequest.getProductId());
 			job.setVariant(encodeRequest.getVariant());
+			job.setCdnSyncRequired(encodeRequest.isCdnSyncRequired());
 			//			job.setSubtitleList(Util.formatSubUrls(encodeRequest.getSubtitleInfo(), encodeRequest.getClientId(), encodeRequest.getMediaId()));
 			job.setSubtitleList(encodeRequest.getSubtitleInfo());
 			log.debug("Basic params set");

@@ -39,9 +39,17 @@ public class EncodingJob implements Serializable
 	private EncodeSummary encodeSummary;
 	private boolean reprocess;
 	private List<SubtitleInfo> subtitleList;
+	private FtpInfo cdnFtpInfo;
+	private boolean cdnSyncRequired;
 
 	public EncodingJob()
 	{
+		//TODO: Hardcoding VTN prod FTP Info as default. Needs to come from CouchDB client config
+		cdnFtpInfo = new FtpInfo();
+		cdnFtpInfo.setHost("ftphcm.cdnviet.com");
+		cdnFtpInfo.setPassword("bhd@123#");
+		cdnFtpInfo.setUsername("wmhyqyg");
+		cdnFtpInfo.setIp("113.164.15.170");
 	}
 
 	public int getEncodingProfileId()
@@ -237,6 +245,26 @@ public class EncodingJob implements Serializable
 	public void setSubtitleList(List<SubtitleInfo> subtitleList)
 	{
 		this.subtitleList = subtitleList;
+	}
+
+	public FtpInfo getCdnFtpInfo()
+	{
+		return cdnFtpInfo;
+	}
+
+	public void setCdnFtpInfo(FtpInfo cdnFtpInfo)
+	{
+		this.cdnFtpInfo = cdnFtpInfo;
+	}
+
+	public boolean isCdnSyncRequired()
+	{
+		return cdnSyncRequired;
+	}
+
+	public void setCdnSyncRequired(boolean cdnSyncRequired)
+	{
+		this.cdnSyncRequired = cdnSyncRequired;
 	}
 
 	@Override

@@ -13,6 +13,7 @@ import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
 import com.movideo.nextgen.encoder.common.Util;
 import com.movideo.nextgen.encoder.models.EncodingJob;
 import com.movideo.nextgen.encoder.models.EncodingProfileInfo;
+import com.movideo.nextgen.encoder.models.FtpInfo;
 import com.movideo.nextgen.encoder.models.InputConfig;
 import com.movideo.nextgen.encoder.models.OutputConfig;
 import com.movideo.nextgen.encoder.models.StreamConfig;
@@ -44,7 +45,27 @@ public class BitcodinProxy
 		return BitcodinHttpHelper.makeHttpCall("job/" + jobId + "/transfers", null, "get");
 	}
 
-	public static JSONObject transferToAzure(long jobId, long outputId) throws BitcodinException
+	public static JSONObject createFTPOutput(FtpInfo ftpInfo) throws BitcodinException, NumberFormatException
+	{
+		JSONObject payload = new JSONObject();
+		try
+		{
+			payload.put("name", ftpInfo.getName());
+			payload.put("username", ftpInfo.getUsername());
+			payload.put("password", ftpInfo.getPassword());
+			payload.put("type", "ftp");
+			payload.put("host", ftpInfo.getPath());
+
+			log.info("BitcodinProxy: createFTPOutput() -> Payload to output create: \n" + payload);
+		}
+		catch(JSONException e)
+		{
+			throw new BitcodinException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), e.getMessage(), e);
+		}
+		return BitcodinHttpHelper.makeHttpCall("output/create", payload.toString(), "post");
+	}
+
+	public static JSONObject transferJobOutput(long jobId, long outputId) throws BitcodinException
 	{
 		JSONObject payload = new JSONObject();
 		try

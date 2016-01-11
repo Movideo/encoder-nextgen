@@ -24,6 +24,7 @@ import com.movideo.nextgen.encoder.dao.EncodeDAO;
 import com.movideo.nextgen.encoder.models.AzureBlobInfo;
 import com.movideo.nextgen.encoder.models.EncodeSummary;
 import com.movideo.nextgen.encoder.models.EncodingJob;
+import com.movideo.nextgen.encoder.models.FtpInfo;
 import com.movideo.nextgen.encoder.models.Manifest;
 
 /**
@@ -175,7 +176,7 @@ public class PollBitcodinJobStatusTask extends Task
 					// Copy bitcodin output to Azure blob
 					try
 					{
-						BitcodinProxy.transferToAzure(jobId, job.getOutputId());
+						BitcodinProxy.transferJobOutput(jobId, job.getOutputId());
 					}
 					catch(BitcodinException e)
 					{
@@ -213,14 +214,55 @@ public class PollBitcodinJobStatusTask extends Task
 					}
 					EncodeSummary encodeSummary = job.getEncodeSummary();
 					encodeSummary.setManifests(manifestUrlList.toArray(new Manifest[manifestUrlList.size()]));
-					log.info("Encode Summary is: " + encodeSummary);
+					log.info("Encode summary for this job is: " + job.getEncodeSummary());
 					job.setEncodeSummary(encodeSummary);
 					//TODO: Poll Bitcodin to check transfer status
 
 				}
 
+				if(job.isCdnSyncRequired())
+				{
+					FtpInfo ftpInfo = Util.getFtpOutputInfo(job);
+					boolean dirCreated = Util.createFtpMediaFolder(ftpInfo);
+					if(!dirCreated)
+					{
+						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+						return;
+					}
+					try
+					{
+						response = BitcodinProxy.createFTPOutput(ftpInfo);
+					}
+					catch(BitcodinException | NumberFormatException e1)
+					{
+						log.error("Unable to create FTP output");
+						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+						return;
+					}
+					if(response.has("outputId"))
+					{
+						try
+						{
+							response = BitcodinProxy.transferJobOutput(job.getEncodingJobId(), response.getLong("outputId"));
+							//StringBuffer query = new StringBuffer("update [movideo_utf8].[playlist] set status = 'ACTIVE' where id = ").append(job.getProductId());
+						}
+						catch(BitcodinException | JSONException e)
+						{
+							log.error("Unable to start transfer to FTP job");
+							queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+							return;
+						}
+					}
+					else
+					{
+						log.error("Error in creating FTP output for mediaId: " + job.getMediaId());
+						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+						return;
+					}
+
+				}
+
 				queueManager.moveQueues(workingListName, successListName, jobString, job.toString());
-				log.info("Encode summary for this job is: " + job.getEncodeSummary());
 				encodeDAO.storeEncodeSummary(job.getEncodeSummary());
 
 			}

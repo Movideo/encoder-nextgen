@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.net.ftp.FTPClient;
+import org.apache.commons.net.ftp.FTPFile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,6 +27,7 @@ import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
 import com.movideo.nextgen.encoder.bitcodin.BitcodinException;
 import com.movideo.nextgen.encoder.models.AzureBlobInfo;
 import com.movideo.nextgen.encoder.models.EncodingJob;
+import com.movideo.nextgen.encoder.models.FtpInfo;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -226,6 +229,77 @@ public class Util
 				"AccountKey=" + info.getAccountKey();
 	}
 
+	public static FtpInfo getFtpOutputInfo(EncodingJob job)
+	{
+		FtpInfo ftpInfo = new FtpInfo();
+		FtpInfo cdnInfo = job.getCdnFtpInfo();
+		ftpInfo.setName("FTP-Output-" + job.getMediaId());
+		ftpInfo.setUsername(cdnInfo.getUsername());
+		ftpInfo.setPassword(cdnInfo.getPassword());
+		ftpInfo.setHost(cdnInfo.getHost());
+		StringBuffer buffer = new StringBuffer();
+		buffer.append(getConfigProperty("azure.blob.output.container.prefix")).append(job.getClientId()).append("/")
+				.append(getConfigProperty("azure.blob.media.path.prefix"));
+		ftpInfo.setPrefix(buffer.toString());
+		buffer.insert(0, cdnInfo.getHost() + "/");
+		buffer.append("/").append(job.getMediaId());
+		ftpInfo.setPath(buffer.toString());
+		ftpInfo.setMediaId(job.getMediaId());
+		ftpInfo.setIp(cdnInfo.getIp());
+
+		return ftpInfo;
+	}
+
+	public static boolean createFtpMediaFolder(FtpInfo ftpInfo)
+	{
+		FTPClient client = new FTPClient();
+		try
+		{
+			boolean result = true;
+			log.info(ftpInfo.getIp());
+			client.connect(ftpInfo.getIp());
+			client.login(ftpInfo.getUsername(), ftpInfo.getPassword());
+			boolean isDirChanged = client.changeWorkingDirectory(ftpInfo.getPrefix());
+			if(!isDirChanged)
+			{
+				log.error("Unable to switch to the specified directory");
+				return false;
+			}
+			FTPFile[] dirs = client.listDirectories();
+			boolean dirExists = false;
+			String dirName = String.valueOf(ftpInfo.getMediaId());
+			for(FTPFile dir : dirs)
+			{
+				if(dir.getName().equalsIgnoreCase(dirName))
+				{
+					dirExists = true;
+					break;
+				}
+			}
+			if(dirExists)
+			{
+				log.info("Directory exists");
+				result = true;
+			}
+			else
+			{
+				log.info("Attempting to create folder: " + dirName + " under " + client.printWorkingDirectory());
+				result = client.makeDirectory(dirName);
+				log.info("Created Directory? " + result);
+			}
+
+			client.disconnect();
+			return result;
+
+		}
+		catch(IOException e)
+		{
+			log.error("Unable to create FTP folder.", e);
+			return false;
+		}
+
+	}
+
 	public static Map<String, String> getHeadersMap(String config)
 	{
 		Map<String, String> headersMap = new HashMap<>();
@@ -237,4 +311,5 @@ public class Util
 		}
 		return headersMap;
 	}
+
 }

@@ -7,10 +7,6 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;
-import org.ektorp.CouchDbConnector;
-// import org.ektorp.CouchDbConnector;
-// import org.ektorp.http.HttpClient;
-// import org.ektorp.http.StdHttpClient;
 import org.ektorp.CouchDbInstance;
 import org.ektorp.ViewQuery;
 import org.ektorp.http.HttpClient;
@@ -25,8 +21,6 @@ public class EncodeDAO
 
 	private static final Logger log = LogManager.getLogger();
 
-	private CouchDbConnector db;
-	private static EncodeDAO instance;
 	private final String connectionString;
 	private final String databaseName;
 	private static HttpClient httpClient;

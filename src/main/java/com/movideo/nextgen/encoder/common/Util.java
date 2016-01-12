@@ -12,7 +12,6 @@ import java.util.Map;
 
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.net.ftp.FTPClient;
-import org.apache.commons.net.ftp.FTPFile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -208,7 +207,7 @@ public class Util
 			ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 			sourceBlob.download(outputStream);
 
-			String contents = new String(outputStream.toByteArray());
+			String contents = new String(outputStream.toByteArray(), "UTF-8");
 			log.debug("Downloaded source file contents. Contents:\n" + contents);
 
 			/* Upload to destination */
@@ -265,17 +264,9 @@ public class Util
 				log.error("Unable to switch to the specified directory");
 				return false;
 			}
-			FTPFile[] dirs = client.listDirectories();
-			boolean dirExists = false;
 			String dirName = String.valueOf(ftpInfo.getMediaId());
-			for(FTPFile dir : dirs)
-			{
-				if(dir.getName().equalsIgnoreCase(dirName))
-				{
-					dirExists = true;
-					break;
-				}
-			}
+			boolean dirExists = client.changeWorkingDirectory(dirName);
+
 			if(dirExists)
 			{
 				log.info("Directory exists");
@@ -283,6 +274,8 @@ public class Util
 			}
 			else
 			{
+				String parentDir = "/" + ftpInfo.getPrefix();
+				client.changeWorkingDirectory(parentDir);
 				log.info("Attempting to create folder: " + dirName + " under " + client.printWorkingDirectory());
 				result = client.makeDirectory(dirName);
 				log.info("Created Directory? " + result);

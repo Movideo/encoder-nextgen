@@ -1,9 +1,9 @@
 package com.movideo.nextgen.common.http;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
+import org.apache.commons.codec.Charsets;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.ParseException;
@@ -119,15 +119,7 @@ public class HttpHelper
 		if(method.equals("post"))
 		{
 			HttpPost post = new HttpPost(url);
-			try
-			{
-				post.setEntity(new StringEntity(payload));
-			}
-			catch(UnsupportedEncodingException e)
-			{
-				throw new EncoderException(Integer.parseInt(Util.getConfigProperty("error.codes.bad.request")), e.getMessage(), e);
-			}
-
+			post.setEntity(new StringEntity(payload, Charsets.UTF_8));
 			uriRequest = post;
 		}
 		else if(method.equals("delete"))

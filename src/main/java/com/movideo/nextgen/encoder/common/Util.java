@@ -3,6 +3,8 @@ package com.movideo.nextgen.encoder.common;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
@@ -17,6 +19,8 @@ import org.apache.logging.log4j.Logger;
 
 import com.amazonaws.util.json.JSONException;
 import com.google.gson.Gson;
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
 import com.microsoft.azure.storage.CloudStorageAccount;
 import com.microsoft.azure.storage.StorageException;
 import com.microsoft.azure.storage.blob.CloudBlobClient;
@@ -58,13 +62,16 @@ public class Util
 	 * @param json
 	 *            - JSON string representing the job
 	 * @return
+	 * @throws UnsupportedEncodingException
+	 * @throws JsonIOException
+	 * @throws JsonSyntaxException
 	 * @throws JSONException
 	 */
-	public static EncodingJob getBitcodinJobFromJSON(String jsonString)
+	public static EncodingJob getBitcodinJobFromJSON(String jsonString) throws JsonSyntaxException, JsonIOException, UnsupportedEncodingException
 	{
 
 		Gson gson = new Gson();
-		EncodingJob job = gson.fromJson(jsonString, EncodingJob.class);
+		EncodingJob job = gson.fromJson(new InputStreamReader(new ByteArrayInputStream(jsonString.getBytes()), "UTF-8"), EncodingJob.class);
 
 		return job;
 	}

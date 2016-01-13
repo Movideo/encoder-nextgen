@@ -2,6 +2,8 @@ package com.movideo.nextgen.common.encoder.models;
 
 import java.util.List;
 
+import org.json.JSONObject;
+
 public class EncodeRequest
 {
 
@@ -109,6 +111,12 @@ public class EncodeRequest
 	public void setCdnSyncRequired(boolean cdnSyncRequired)
 	{
 		this.cdnSyncRequired = cdnSyncRequired;
+	}
+
+	@Override
+	public String toString()
+	{
+		return new JSONObject(this).toString();
 	}
 
 }

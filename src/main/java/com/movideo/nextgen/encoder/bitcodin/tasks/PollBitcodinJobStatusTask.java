@@ -1,6 +1,7 @@
 package com.movideo.nextgen.encoder.bitcodin.tasks;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 import com.microsoft.azure.storage.StorageException;
 import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
@@ -66,7 +68,7 @@ public class PollBitcodinJobStatusTask extends Task
 			{
 				job = Util.getBitcodinJobFromJSON(jobString);
 			}
-			catch(JsonSyntaxException e)
+			catch(JsonSyntaxException | JsonIOException | UnsupportedEncodingException e)
 			{
 				log.error("Could not extract bitcodin job from JSON Object", e);
 				queueManager.moveQueues(workingListName, errorListName, jobString, null);

@@ -1,11 +1,15 @@
 package com.movideo.nextgen.encoder.bitcodin.tasks;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 import com.movideo.nextgen.common.encoder.models.EncodeInfo;
 import com.movideo.nextgen.common.encoder.models.EncodeRequest;
@@ -38,10 +42,10 @@ public class ProcessEncodeRequestTask extends Task
 
 		try
 		{
-			encodeRequest = new Gson().fromJson(jobString, EncodeRequest.class);
-			log.debug("Encode Request Received is: \n" + new Gson().toJson(encodeRequest));
+			encodeRequest = new Gson().fromJson(new InputStreamReader(new ByteArrayInputStream(jobString.getBytes()), "UTF-8"), EncodeRequest.class);
+			log.debug("Encode Request Received is: \n" + encodeRequest);
 		}
-		catch(JsonSyntaxException e)
+		catch(JsonSyntaxException | JsonIOException | UnsupportedEncodingException e)
 		{
 			log.error("Unable to create EncodeRequest object from input message. Exception is: " + e.getMessage());
 			try

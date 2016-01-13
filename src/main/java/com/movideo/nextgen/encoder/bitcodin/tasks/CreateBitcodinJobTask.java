@@ -1,6 +1,7 @@
 package com.movideo.nextgen.encoder.bitcodin.tasks;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.List;
 import java.util.Map;
 
@@ -10,6 +11,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
 import com.movideo.nextgen.common.multithreading.Task;
@@ -118,7 +120,7 @@ public class CreateBitcodinJobTask extends Task
 			{
 				job = Util.getBitcodinJobFromJSON(jobString);
 			}
-			catch(JsonSyntaxException e)
+			catch(JsonSyntaxException | JsonIOException | UnsupportedEncodingException e)
 			{
 				log.error("Could not extract bitcodin job from job string", e);
 				queueManager.moveQueues(workingListName, errorListName, jobString, null);

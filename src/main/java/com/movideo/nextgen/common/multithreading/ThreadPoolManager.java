@@ -92,10 +92,10 @@ public class ThreadPoolManager extends Thread
 				queueLength = queueManager.getQueueLength(listToWatch);
 				break;
 			}
-			catch(QueueException qe)
+			catch(Exception exception)
 			{
 				// This happens when the thread times out after inactivity for a long time. So sleep and resume
-				log.error("Read timed out when trying to read from " + listToWatch + "! Attempting to retry after 5 minutes");
+				log.error("Unable to get queue length for " + listToWatch + "! Attempting to retry after 5 minutes", exception);
 				powerNap(5 * 60 * 1000);
 				log.info("Trying to connect to " + listToWatch + " after 5 minutes sleep");
 			}

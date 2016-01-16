@@ -2,6 +2,7 @@ package com.movideo.nextgen.encoder.bitcodin.tasks;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -100,6 +101,8 @@ public class CreateBitcodinJobTask extends Task
 	@Override
 	public void run()
 	{
+
+		String jobString = new String(jobStringAsBytes, StandardCharsets.UTF_8);
 
 		log.debug("CreateBitcodinJob : run() -> Executing job creator");
 

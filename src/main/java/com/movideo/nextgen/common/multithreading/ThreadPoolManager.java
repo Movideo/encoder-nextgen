@@ -156,23 +156,30 @@ public class ThreadPoolManager extends Thread
 					}
 
 					executor.submit(task);
+
+					//If this job is throttled, introduce an artificial delay for the actual requests to get created.
+					//Ex: Create Bitcodin job takes about a couple of minutes to get created because of input & output creation calls involved
+					if(throttled)
+					{
+						log.debug("Throttled job. Taking a 5 minute power nap before pushing next job through!");
+						powerNap(5 * 60 * 1000);
+					}
 				}
 
 				// Throttling needed per the previous condition. Sleep for a significant amount of time and wait for jobs to free up
 				while(getQueueLength() > 0 && isThrottleNeeded())
 				{
-					log.info("Workers busy. Taking a 15 minute power nap");
+					log.info("Job workers busy. Taking a 15 minute power nap");
 					powerNap(15 * 60 * 1000);
 
 				}
 
-				//If this job is throttled, introduce an artificial delay for the actual requests to get created.
-				//Ex: Create Bitcodin job takes about a couple of minutes to get created because of input & output creation calls involved
-				if(throttled)
+				while(getQueueLength() == 0)
 				{
-					log.info("Throttled job. Taking a 5 minute power nap");
-					powerNap(15 * 60 * 1000);
+					log.debug("No jobs to process. Retrying after 5 mins");
+					powerNap(5 * 60 * 1000);
 				}
+
 			}
 			catch(QueueException e)
 			{

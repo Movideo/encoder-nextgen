@@ -3,6 +3,7 @@ package com.movideo.nextgen.encoder.bitcodin.tasks;
 import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -36,13 +37,14 @@ public class ProcessEncodeRequestTask extends Task
 	@Override
 	public void run()
 	{
+		String jobString = new String(jobStringAsBytes, StandardCharsets.UTF_8);
 
 		log.debug("In ProcessEncodeTask");
 		EncodeRequest encodeRequest;
 
 		try
 		{
-			encodeRequest = new Gson().fromJson(new InputStreamReader(new ByteArrayInputStream(jobString.getBytes()), "UTF-8"), EncodeRequest.class);
+			encodeRequest = new Gson().fromJson(new InputStreamReader(new ByteArrayInputStream(jobStringAsBytes), "UTF-8"), EncodeRequest.class);
 			log.debug("Encode Request Received is: \n" + encodeRequest);
 		}
 		catch(JsonSyntaxException | JsonIOException | UnsupportedEncodingException e)

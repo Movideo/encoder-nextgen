@@ -3,6 +3,7 @@ package com.movideo.nextgen.encoder.bitcodin.tasks;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +54,8 @@ public class PollBitcodinJobStatusTask extends Task
 	@Override
 	public void run()
 	{
+
+		String jobString = new String(jobStringAsBytes, StandardCharsets.UTF_8);
 
 		log.debug("PollBitcodinJobStatus : run() -> Executing poller");
 

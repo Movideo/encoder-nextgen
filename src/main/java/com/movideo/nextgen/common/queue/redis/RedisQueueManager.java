@@ -1,5 +1,7 @@
 package com.movideo.nextgen.common.queue.redis;
 
+import java.nio.charset.StandardCharsets;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -54,7 +56,7 @@ public class RedisQueueManager extends QueueManager
 	{
 		try (Jedis jedis = pool.getResource())
 		{
-			return jedis.brpoplpush(fromQueue, toQueue, 1);
+			return new String(jedis.brpoplpush(fromQueue.getBytes(), toQueue.getBytes(), 1), StandardCharsets.UTF_8);
 		}
 	}
 

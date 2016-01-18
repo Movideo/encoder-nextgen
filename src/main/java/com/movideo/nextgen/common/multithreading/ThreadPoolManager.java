@@ -1,5 +1,6 @@
 package com.movideo.nextgen.common.multithreading;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ThreadPoolExecutor;
 
 import org.apache.logging.log4j.LogManager;
@@ -140,13 +141,16 @@ public class ThreadPoolManager extends Thread
 
 					// Assumes that the task class already knows that the job source
 					// is workerInputList
-					String jobString = (String) queueManager.moveAndReturnTopElement(listToWatch, workerInputList);
+					byte[] jobBytes = (byte[]) queueManager.moveAndReturnTopElement(listToWatch, workerInputList);
 
 					/* Thread safety */
-					if(jobString == null)
+					if(jobBytes == null || jobBytes.length == 0)
 					{
 						continue;
 					}
+
+					String jobString = new String(jobBytes, StandardCharsets.UTF_8);
+					log.info("Job string : " + jobString);
 
 					task = getTaskInstance(jobString);
 					if(task == null)

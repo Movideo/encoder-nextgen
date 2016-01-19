@@ -155,7 +155,7 @@ public class Util
 
 	public static String getManifestUrl(EncodingJob job, String tempUrl) throws BitcodinException
 	{
-		//"http://eu-storage-bitcodin.storage.googleapis.com/bitStorage/2232_5dbb991ee5d11f1a3f8dd3e9898c8f46/38228_2d5fbd0c6cba17ebe51f98d2b635c5dd/test1234.mpd"
+		//"https:\/\/ap-southeast-1-bitcodin.s3-ap-southeast-1.amazonaws.com\/bitStorage\/2232_5dbb991ee5d11f1a3f8dd3e9898c8f46\/109184_9c4cdc379965547332b02809f0760693\/m3u8s\/109184_subs.m3u8"
 		String[] tokens = tempUrl.split("/");
 		int tokenCount = tokens.length;
 
@@ -165,7 +165,8 @@ public class Util
 		}
 
 		StringBuffer buffer = new StringBuffer(getConfigProperty("azure.blob.output.url.prefix")).append(getConfigProperty("azure.blob.output.container.prefix")).append(job.getClientId()).append("/");
-		buffer.append(getConfigProperty("azure.blob.media.path.prefix")).append("/").append(job.getMediaId()).append("/").append(tokens[tokenCount - 2]).append("/").append(tokens[tokenCount - 1]);
+		buffer.append(getConfigProperty("azure.blob.media.path.prefix")).append("/").append(job.getMediaId()).append("/")
+				.append(tokens[tokenCount - 3]).append("/").append(tokens[tokenCount - 2]).append("/").append(tokens[tokenCount - 1]);
 
 		log.debug("Manifest URL : " + buffer);
 		return buffer.toString();

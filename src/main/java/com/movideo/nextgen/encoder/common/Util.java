@@ -172,6 +172,30 @@ public class Util
 		return buffer.toString();
 	}
 
+	public static List<String> getSubtitleOutputBlobReferences(List<SubtitleInfo> subsList, String manifestUrl)
+	{
+		// Regardless of where the manifest is dropped, it's always assumed that subtitle is in the same folder.
+		// Blob reference is relative within a container. Ex: media/848095/2232_5dbb991ee5d11f1a3f8dd3e9898c8f46/mpds/
+		List<String> result = new ArrayList<>();
+		String[] uriSegments = manifestUrl.split("/");
+		int segmentCount = uriSegments.length;
+
+		StringBuffer prefix = new StringBuffer();
+
+		// Ex manifest url: https://movideoencoded1.blob.core.windows.net/encoded-457/media/1427936/110340_5bc2c93da9061de3aa874c59e7803032/m3u8s/110340_subs.m3u8
+		for(int index = 4; index < segmentCount - 1; index++)
+		{
+			prefix.append(uriSegments[index]).append("/");
+		}
+
+		for(SubtitleInfo info : subsList)
+		{
+			result.add(prefix + info.getUrl());
+		}
+
+		return result;
+	}
+
 	public static String getBitcodinFolderHash(String tempUrl)
 	{
 		//"http://eu-storage-bitcodin.storage.googleapis.com/bitStorage/2232_5dbb991ee5d11f1a3f8dd3e9898c8f46/38228_2d5fbd0c6cba17ebe51f98d2b635c5dd/test1234.mpd"

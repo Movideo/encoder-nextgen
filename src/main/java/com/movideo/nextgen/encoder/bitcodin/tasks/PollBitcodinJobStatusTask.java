@@ -162,8 +162,38 @@ public class PollBitcodinJobStatusTask extends Task
 							if(response.has(urlKey))
 							{
 								tempUrl = response.getString(urlKey);
-								manifest.setUrl(Util.getManifestUrl(job, tempUrl));
+								String manifestUrl = Util.getManifestUrl(job, tempUrl);
+								manifest.setUrl(manifestUrl);
 								manifestUrlList.add(manifest);
+
+								// Copy subtitle files over from origin blob to destination blob
+								try
+								{
+									AzureBlobInfo input = new AzureBlobInfo();
+									AzureBlobInfo output = new AzureBlobInfo();
+
+									input.setAccountKey(Util.getConfigProperty("azure.blob.input.account.key"));
+									input.setAccountName(Util.getConfigProperty("azure.blob.input.account.name"));
+									input.setContainer(Util.getConfigProperty("azure.blob.input.container.prefix") + job.getClientId());
+
+									output.setAccountKey(Util.getConfigProperty("azure.blob.output.account.key"));
+									output.setAccountName(Util.getConfigProperty("azure.blob.output.account.name"));
+									output.setContainer(Util.getConfigProperty("azure.blob.output.container.prefix") + job.getClientId());
+
+									input.setBlobReferences(getSubFilenames(job, true, null));
+									//output.setBlobReferences(getSubFilenames(job, false, Util.getBitcodinFolderHash(tempUrl)));
+									output.setBlobReferences(Util.getSubtitleOutputBlobReferences(job.getSubtitleList(), manifestUrl));
+
+									Util.copyAzureBlockBlob(input, output);
+
+								}
+								catch(InvalidKeyException | URISyntaxException | StorageException | IOException e)
+								{
+									log.error("Unable to transfer subtitle files specified for job" + job.getEncodingJobId(), e);
+									job.setErrorType(Util.getConfigProperty("job.status.failed"));
+									queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+									return;
+								}
 							}
 							else
 							{
@@ -190,33 +220,7 @@ public class PollBitcodinJobStatusTask extends Task
 						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
 						return;
 					}
-					// Copy subtitle files over from origin blob to destination blob
-					try
-					{
-						AzureBlobInfo input = new AzureBlobInfo();
-						AzureBlobInfo output = new AzureBlobInfo();
 
-						input.setAccountKey(Util.getConfigProperty("azure.blob.input.account.key"));
-						input.setAccountName(Util.getConfigProperty("azure.blob.input.account.name"));
-						input.setContainer(Util.getConfigProperty("azure.blob.input.container.prefix") + job.getClientId());
-
-						output.setAccountKey(Util.getConfigProperty("azure.blob.output.account.key"));
-						output.setAccountName(Util.getConfigProperty("azure.blob.output.account.name"));
-						output.setContainer(Util.getConfigProperty("azure.blob.output.container.prefix") + job.getClientId());
-
-						input.setBlobReferences(getSubFilenames(job, true, null));
-						output.setBlobReferences(getSubFilenames(job, false, Util.getBitcodinFolderHash(tempUrl)));
-
-						Util.copyAzureBlockBlob(input, output);
-
-					}
-					catch(InvalidKeyException | URISyntaxException | StorageException | IOException e)
-					{
-						log.error("Unable to transfer subtitle files specified for job" + job.getEncodingJobId(), e);
-						job.setErrorType(Util.getConfigProperty("job.status.failed"));
-						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-						return;
-					}
 					EncodeSummary encodeSummary = job.getEncodeSummary();
 					encodeSummary.setManifests(manifestUrlList.toArray(new Manifest[manifestUrlList.size()]));
 					log.info("Encode summary for this job is: " + job.getEncodeSummary());

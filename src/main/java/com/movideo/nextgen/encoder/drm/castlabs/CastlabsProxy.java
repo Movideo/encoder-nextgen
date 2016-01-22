@@ -125,7 +125,7 @@ public class CastlabsProxy
 				// This deletes all keys for this asset.
 				String url = Util.getConfigProperty("castlabs.cenc.key.delete.url");
 
-				url = url.replace("[assetId]", job.getProductId()).replace("[variantId]", job.getVariant());
+				//url = url.replace("[assetId]", job.getProductId()).replace("[variantId]", job.getVariant());
 				url = url + "?ticket="
 						+ getCasToken(url);
 				log.info("URL for deleting previously ingested CENC Key: " + url);
@@ -212,7 +212,8 @@ public class CastlabsProxy
 				ingestKey.put("iv", keysMap.get("ivBase64"));
 				hlsDrmInfo = new DRMInfo();
 				hlsDrmInfo.setKeys(new String[] { keysMap.get("ivHex"), keysMap.get("keyHex") });
-				hlsDrmInfo.setLicenseUrl(Util.getConfigProperty("castlabs.fps.licenseUrl"));
+				String licenseUrl = Util.getConfigProperty("castlabs.fps.licenseUrl").replace("[ASSET_ID]", job.getProductId()).replace("[VARIANT_ID]", job.getVariant());;
+				hlsDrmInfo.setLicenseUrl(licenseUrl);
 			}
 
 			ingestKeys.put(ingestKey);

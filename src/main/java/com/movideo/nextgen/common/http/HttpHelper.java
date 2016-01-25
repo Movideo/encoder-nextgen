@@ -9,6 +9,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.ParseException;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -29,7 +30,7 @@ public class HttpHelper
 
 	private static final Logger log = LogManager.getLogger();
 
-	private static final HttpClient httpClient = HttpClientBuilder.create().build();
+	private static HttpClient httpClient;
 
 	protected HttpHelper()
 	{
@@ -38,9 +39,31 @@ public class HttpHelper
 	protected static JSONObject httpService(String url, String method, Map<String, String> headers, String payload)
 			throws EncoderException
 	{
-
 		return httpService(getUriRequestFromParams(url, method, headers, payload));
 
+	}
+
+	private static HttpClient getHttpClient()
+	{
+		if(httpClient == null)
+		{
+			synchronized(HttpHelper.class)
+			{
+				if(httpClient == null)
+				{
+					RequestConfig.Builder requestBuilder = RequestConfig.custom();
+					int timeout = 5 * 60 * 1000;
+					requestBuilder = requestBuilder.setConnectTimeout(timeout);
+					requestBuilder = requestBuilder.setConnectionRequestTimeout(timeout);
+					requestBuilder = requestBuilder.setSocketTimeout(timeout);
+
+					HttpClientBuilder builder = HttpClientBuilder.create();
+					builder.setDefaultRequestConfig(requestBuilder.build());
+					httpClient = builder.build();
+				}
+			}
+		}
+		return httpClient;
 	}
 
 	protected static JSONObject httpService(HttpUriRequest uriRequest) throws EncoderException
@@ -49,7 +72,7 @@ public class HttpHelper
 		try
 		{
 			log.info("HttpHelper : httpService() -> REQUEST IN HTTPSERVICE: " + uriRequest);
-			httpResponse = httpClient.execute(uriRequest);
+			httpResponse = getHttpClient().execute(uriRequest);
 			int responseCode = httpResponse.getStatusLine().getStatusCode();
 			HttpEntity entity = httpResponse.getEntity();
 			String responseString;
@@ -95,7 +118,7 @@ public class HttpHelper
 	{
 		try
 		{
-			return httpClient.execute(uriRequest);
+			return getHttpClient().execute(uriRequest);
 		}
 		catch(IOException e)
 		{

@@ -16,6 +16,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -51,6 +52,9 @@ public class HttpHelper
 			{
 				if(httpClient == null)
 				{
+					PoolingHttpClientConnectionManager poolMgr = new PoolingHttpClientConnectionManager();
+					poolMgr.setMaxTotal(1000);
+
 					RequestConfig.Builder requestBuilder = RequestConfig.custom();
 					int timeout = 5 * 60 * 1000;
 					requestBuilder = requestBuilder.setConnectTimeout(timeout);
@@ -59,6 +63,7 @@ public class HttpHelper
 
 					HttpClientBuilder builder = HttpClientBuilder.create();
 					builder.setDefaultRequestConfig(requestBuilder.build());
+					builder.setConnectionManager(poolMgr);
 					httpClient = builder.build();
 				}
 			}

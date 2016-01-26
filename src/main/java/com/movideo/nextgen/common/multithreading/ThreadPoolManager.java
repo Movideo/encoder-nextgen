@@ -96,7 +96,8 @@ public class ThreadPoolManager extends Thread
 			catch(Exception exception)
 			{
 				// This happens when the thread times out after inactivity for a long time. So sleep and resume
-				log.error("Unable to get queue length for " + listToWatch + "! Attempting to retry after 5 minutes", exception);
+				log.error("Unable to get queue length for " + listToWatch + "! Attempting to retry after 5 minutes");
+				log.debug(exception.getMessage());
 				powerNap(5 * 60 * 1000);
 				log.info("Trying to connect to " + listToWatch + " after 5 minutes sleep");
 			}

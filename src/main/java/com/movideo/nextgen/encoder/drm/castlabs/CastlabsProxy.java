@@ -151,6 +151,7 @@ public class CastlabsProxy
 
 				HttpResponse response = CastlabsHttpHelper.getRawHttpResponse(url, payload.toString(), "post",
 						getFrontEndHeaders());
+				EntityUtils.consumeQuietly(response.getEntity());
 				log.info("Attempted to delete key for asset: " + job.getProductId() + ", variant: " + job.getVariant() + " and the response code is: " + response.getStatusLine().getStatusCode());
 				// Not checking specific errors here to allow just-in-case re-process requests
 
@@ -212,7 +213,7 @@ public class CastlabsProxy
 				ingestKey.put("iv", keysMap.get("ivBase64"));
 				hlsDrmInfo = new DRMInfo();
 				hlsDrmInfo.setKeys(new String[] { keysMap.get("ivHex"), keysMap.get("keyHex") });
-				String licenseUrl = Util.getConfigProperty("castlabs.fps.licenseUrl").replace("[ASSET_ID]", job.getProductId()).replace("[VARIANT_ID]", job.getVariant());;
+				String licenseUrl = Util.getConfigProperty("castlabs.fps.licenseUrl").replace("[ASSET_ID]", job.getProductId()).replace("[VARIANT_ID]", job.getVariant());
 				hlsDrmInfo.setLicenseUrl(licenseUrl);
 			}
 

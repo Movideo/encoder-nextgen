@@ -144,6 +144,7 @@ public class CreateBitcodinJobTask extends Task
 				log.error("Media already exists, but this is NOT a reprocess job. Previous encoding summary: \n" + mediaEncodings.get(0));
 				job.setStatus(Util.getConfigProperty("job.status.failed"));
 				queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+				return;
 			}
 
 			InputConfig inputConfig = new InputConfig(Util.getConfigProperty("bitcodin.input.azure.type"), Util.getConfigProperty("azure.blob.input.account.name"), Util.getConfigProperty("azure.blob.input.account.key"), Util.getConfigProperty("azure.blob.input.container.prefix") + job.getClientId());

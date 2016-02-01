@@ -248,7 +248,7 @@ public class Util
 			ByteArrayInputStream inputStream = new ByteArrayInputStream(contents.getBytes());
 			destBlob.upload(inputStream, contents.length());
 
-			log.debug("Uploaded " + source.getBlobReferences().get(counter) + " to " + destination.getContainer());
+			log.info("Uploaded " + source.getBlobReferences().get(counter) + " to " + destination.getContainer());
 
 			if(job.isCdnSyncRequired())
 			{

@@ -181,10 +181,10 @@ public class CastlabsProxy
 			payload = new JSONObject();
 			assets = new JSONArray();
 
-			log.info("Ingest Keys: Manifest types: \n");
+			log.debug("Ingest Keys: Manifest types:");
 			for(String manifestType : job.getManifestTypes())
 			{
-				log.info(manifestType);
+				log.debug(manifestType);
 			}
 
 			asset = new JSONObject();

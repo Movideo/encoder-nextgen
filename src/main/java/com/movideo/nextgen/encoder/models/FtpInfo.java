@@ -12,6 +12,7 @@ public class FtpInfo
 	private String path;
 	private int mediaId;
 	private String prefix;
+	private long outputId;
 
 	public String getUsername()
 	{
@@ -91,6 +92,16 @@ public class FtpInfo
 	public void setPrefix(String prefix)
 	{
 		this.prefix = prefix;
+	}
+
+	public long getOutputId()
+	{
+		return outputId;
+	}
+
+	public void setOutputId(long outputId)
+	{
+		this.outputId = outputId;
 	}
 
 	@Override

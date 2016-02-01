@@ -1,10 +1,7 @@
 package com.movideo.nextgen.encoder.bitcodin.tasks;
 
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,7 +12,6 @@ import org.json.JSONObject;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
-import com.microsoft.azure.storage.StorageException;
 import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
 import com.movideo.nextgen.common.multithreading.Task;
 import com.movideo.nextgen.common.queue.QueueException;
@@ -42,6 +38,7 @@ public class PollBitcodinJobStatusTask extends Task
 	private static final Logger log = LogManager.getLogger();
 
 	private String pendingListName = Util.getConfigProperty("redis.poller.input.list"), workingListName = Util.getConfigProperty("redis.poller.working.list"), errorListName = Util.getConfigProperty("redis.poller.error.list"), successListName = Util.getConfigProperty("redis.poller.success.list");
+	private String ftpRetryListName = Util.getConfigProperty("redis.poller.ftp.retry.list"), subtitleRetryListName = Util.getConfigProperty("redis.poller.subtitles.retry.list");
 
 	private EncodeDAO encodeDAO;
 
@@ -166,7 +163,7 @@ public class PollBitcodinJobStatusTask extends Task
 								manifest.setUrl(manifestUrl);
 								manifestUrlList.add(manifest);
 
-								// Copy subtitle files over from origin blob to destination blob
+								// Copy subtitle files over from origin blob to destination blob + CDN FTP if configured 
 								try
 								{
 									AzureBlobInfo input = new AzureBlobInfo();
@@ -184,15 +181,27 @@ public class PollBitcodinJobStatusTask extends Task
 									//output.setBlobReferences(getSubFilenames(job, false, Util.getBitcodinFolderHash(tempUrl)));
 									output.setBlobReferences(Util.getSubtitleOutputBlobReferences(job.getSubtitleList(), manifestUrl));
 
-									Util.copyAzureBlockBlob(input, output);
+									boolean result = Util.copySubtitles(input, output, job, manifestUrl);
+									//Blob copy went through, but FTP failed
+									if(!result && job.isCdnSyncRequired())
+									{
+										job.setStatus("WARN");
+										job.setErrorType("SUBS_COPY_FTP_FAILED");
+										queueManager.push(subtitleRetryListName, job.toString());
+									}
 
 								}
-								catch(InvalidKeyException | URISyntaxException | StorageException | IOException e)
+								catch(Exception e)
 								{
-									log.error("Unable to transfer subtitle files specified for job" + job.getEncodingJobId(), e);
-									job.setErrorType(Util.getConfigProperty("job.status.failed"));
-									queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-									return;
+									//Blob copy failed
+									log.error("Unable to transfer subtitle files specified for job: " + job.getEncodingJobId() + ", product: " + job.getProductId() + ", variant" + job.getVariant() + ", mediaId: " + job.getMediaId(), e);
+									job.setStatus("WARN");
+									job.setErrorType("SUBS_COPY_FTP_AND_BLOB_FAILED");
+									queueManager.push(subtitleRetryListName, job.toString());
+
+									//job.setErrorType(Util.getConfigProperty("job.status.failed"));
+									//queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+									//return;
 								}
 							}
 							else
@@ -229,50 +238,53 @@ public class PollBitcodinJobStatusTask extends Task
 
 				}
 
+				// Copy bitcodin output to CDN FTP if required
 				if(job.isCdnSyncRequired())
 				{
 					FtpInfo ftpInfo = Util.getFtpOutputInfo(job);
-					boolean dirCreated = Util.createFtpMediaFolder(ftpInfo);
-					if(!dirCreated)
-					{
-						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-						return;
-					}
+					job.setCdnFtpInfo(ftpInfo);
+
 					try
 					{
 						response = BitcodinProxy.createFTPOutput(ftpInfo);
+						if(response.has("outputId"))
+						{
+							try
+							{
+								long outputId = response.getLong("outputId");
+								ftpInfo.setOutputId(outputId);
+								job.setCdnFtpInfo(ftpInfo);
+								response = BitcodinProxy.transferJobOutput(job.getEncodingJobId(), outputId);
+							}
+							catch(BitcodinException | JSONException e)
+							{
+								log.error("Unable to start transfer to FTP job");
+								queueManager.push(ftpRetryListName, job.toString());
+								//queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+								//return;
+							}
+						}
+						else
+						{
+							log.error("Error in creating FTP output for mediaId: " + job.getMediaId());
+							queueManager.push(ftpRetryListName, job.toString());
+							//queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+							//return;
+						}
 					}
 					catch(BitcodinException | NumberFormatException e1)
 					{
 						log.error("Unable to create FTP output");
-						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-						return;
-					}
-					if(response.has("outputId"))
-					{
-						try
-						{
-							response = BitcodinProxy.transferJobOutput(job.getEncodingJobId(), response.getLong("outputId"));
-							//StringBuffer query = new StringBuffer("update [movideo_utf8].[playlist] set status = 'ACTIVE' where id = ").append(job.getProductId());
-						}
-						catch(BitcodinException | JSONException e)
-						{
-							log.error("Unable to start transfer to FTP job");
-							queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-							return;
-						}
-					}
-					else
-					{
-						log.error("Error in creating FTP output for mediaId: " + job.getMediaId());
-						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-						return;
+						queueManager.push(ftpRetryListName, job.toString());
+						//queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+						//return;
 					}
 
 				}
 
 				queueManager.moveQueues(workingListName, successListName, jobString, job.toString());
 				encodeDAO.storeEncodeSummary(job.getEncodeSummary());
+				log.info("Successfully created encode summary for job: " + job.getEncodingJobId() + ", productId: " + job.getProductId() + ", variant: " + job.getVariant() + ", mediaId: " + job.getMediaId() + " created successfully");
 
 			}
 			else

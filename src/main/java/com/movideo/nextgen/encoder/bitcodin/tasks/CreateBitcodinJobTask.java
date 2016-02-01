@@ -131,12 +131,20 @@ public class CreateBitcodinJobTask extends Task
 			}
 
 			List<EncodeSummary> mediaEncodings = encodeDao.getExistingMedia(job.getMediaId(), job.getVariant());
-			// This media has already been encoded. Need to delete previous summaries
-			if(!mediaEncodings.isEmpty())
+
+			// Delete previous encoding summaries if it's a reprocess request
+			if(job.isReprocess() && !mediaEncodings.isEmpty())
 			{
-				log.info("Media already exists. Removing previous encoding summary: \n" + mediaEncodings.get(0));
+				log.info("Media already exists and this is a reprocess job. Removing previous encoding summary: \n" + mediaEncodings.get(0));
 				EncodeSummary summary = mediaEncodings.get(0);
 				encodeDao.deleteExistingMedia(summary.getId(), summary.getRevision());
+			}
+			else if(!mediaEncodings.isEmpty())
+			{
+				log.error("Media already exists, but this is NOT a reprocess job. Previous encoding summary: \n" + mediaEncodings.get(0));
+				job.setStatus(Util.getConfigProperty("job.status.failed"));
+				queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+				return;
 			}
 
 			InputConfig inputConfig = new InputConfig(Util.getConfigProperty("bitcodin.input.azure.type"), Util.getConfigProperty("azure.blob.input.account.name"), Util.getConfigProperty("azure.blob.input.account.key"), Util.getConfigProperty("azure.blob.input.container.prefix") + job.getClientId());

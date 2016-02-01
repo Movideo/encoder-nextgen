@@ -1,10 +1,7 @@
 package com.movideo.nextgen.encoder.bitcodin.tasks;
 
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,7 +12,6 @@ import org.json.JSONObject;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
-import com.microsoft.azure.storage.StorageException;
 import com.movideo.nextgen.common.encoder.models.SubtitleInfo;
 import com.movideo.nextgen.common.multithreading.Task;
 import com.movideo.nextgen.common.queue.QueueException;
@@ -184,12 +180,12 @@ public class PollBitcodinJobStatusTask extends Task
 									//output.setBlobReferences(getSubFilenames(job, false, Util.getBitcodinFolderHash(tempUrl)));
 									output.setBlobReferences(Util.getSubtitleOutputBlobReferences(job.getSubtitleList(), manifestUrl));
 
-									Util.copyAzureBlockBlob(input, output);
+									Util.copySubtitles(input, output, job, manifestUrl);
 
 								}
-								catch(InvalidKeyException | URISyntaxException | StorageException | IOException e)
+								catch(Exception e)
 								{
-									log.error("Unable to transfer subtitle files specified for job" + job.getEncodingJobId(), e);
+									log.error("Unable to transfer subtitle files specified for job: " + job.getEncodingJobId() + ", product: " + job.getProductId() + ", variant" + job.getVariant() + ", mediaId: " + job.getMediaId(), e);
 									job.setErrorType(Util.getConfigProperty("job.status.failed"));
 									queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
 									return;
@@ -232,12 +228,12 @@ public class PollBitcodinJobStatusTask extends Task
 				if(job.isCdnSyncRequired())
 				{
 					FtpInfo ftpInfo = Util.getFtpOutputInfo(job);
-					boolean dirCreated = Util.createFtpMediaFolder(ftpInfo);
-					if(!dirCreated)
-					{
-						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
-						return;
-					}
+					//					boolean dirCreated = Util.createFtpMediaFolder(ftpInfo);
+					//					if(!dirCreated)
+					//					{
+					//						queueManager.moveQueues(workingListName, errorListName, jobString, job.toString());
+					//						return;
+					//					}
 					try
 					{
 						response = BitcodinProxy.createFTPOutput(ftpInfo);

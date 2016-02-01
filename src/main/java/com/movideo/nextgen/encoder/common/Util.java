@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -206,7 +207,7 @@ public class Util
 		return bitcodinFolderHash;
 	}
 
-	public static void copyAzureBlockBlob(AzureBlobInfo source, AzureBlobInfo destination) throws URISyntaxException, StorageException, InvalidKeyException, IOException
+	public static boolean copySubtitles(AzureBlobInfo source, AzureBlobInfo destination, EncodingJob job, String manifestUrl) throws URISyntaxException, StorageException, InvalidKeyException, IOException
 	{
 
 		final String sourceStorageConnectionString = buildAzureConnectionString(source);
@@ -249,7 +250,19 @@ public class Util
 
 			log.debug("Uploaded " + source.getBlobReferences().get(counter) + " to " + destination.getContainer());
 
+			if(job.isCdnSyncRequired())
+			{
+				FtpInfo ftpInfo = Util.getFtpOutputInfo(job);
+				boolean result = ftpSubtitleFiles(ftpInfo, getFtpRelativePath(manifestUrl), job.getSubtitleList().get(counter).getUrl(), contents);
+				if(!result)
+				{
+					log.error("Could not copy subtitle files to FTP folder. FTP transfers for jobid: " + job.getEncodingJobId() + ", productId: " + job.getProductId() + ", mediaId: " + job.getMediaId() + ", variant: " + job.getVariant() + " might also fail.");
+				}
+			}
+
 		}
+
+		return true;
 
 	}
 
@@ -258,6 +271,24 @@ public class Util
 		return "DefaultEndpointsProtocol=http;" +
 				"AccountName=" + info.getAccountName() + ";" +
 				"AccountKey=" + info.getAccountKey();
+	}
+
+	public static String getFtpRelativePath(String manifestUrl)
+	{
+		// Regardless of where the manifest is dropped, it's always assumed that subtitle is in the same folder.
+		// Blob reference is relative within a container. Ex: media/848095/2232_5dbb991ee5d11f1a3f8dd3e9898c8f46/mpds/
+		String[] uriSegments = manifestUrl.split("/");
+		int segmentCount = uriSegments.length;
+
+		StringBuffer prefix = new StringBuffer();
+
+		// Ex manifest url: https://movideoencoded1.blob.core.windows.net/encoded-457/media/1427936/110340_5bc2c93da9061de3aa874c59e7803032/m3u8s/110340_subs.m3u8
+		for(int index = 6; index < segmentCount - 1; index++)
+		{
+			prefix.append(uriSegments[index]).append("/");
+		}
+
+		return prefix.toString();
 	}
 
 	public static FtpInfo getFtpOutputInfo(EncodingJob job)
@@ -281,47 +312,98 @@ public class Util
 		return ftpInfo;
 	}
 
-	public static boolean createFtpMediaFolder(FtpInfo ftpInfo)
+	public static boolean ftpSubtitleFiles(FtpInfo ftpInfo, String relativePath, String fileName, String contents)
 	{
 		FTPClient client = new FTPClient();
+
+		log.debug("Params - FTPInfo: " + ftpInfo + ", relativePath: " + relativePath + ", fileName: " + fileName + ", contents: " + contents);
+
+		boolean result;
 		try
 		{
-			boolean result = true;
-			log.info(ftpInfo.getIp());
+			log.debug(ftpInfo.getIp());
 			client.connect(ftpInfo.getIp());
 			client.login(ftpInfo.getUsername(), ftpInfo.getPassword());
-			boolean isDirChanged = client.changeWorkingDirectory(ftpInfo.getPrefix());
+
+			String prefix = "/" + ftpInfo.getPrefix() + "/" + ftpInfo.getMediaId();
+
+			boolean isDirChanged = client.changeWorkingDirectory(prefix);
+
 			if(!isDirChanged)
 			{
-				log.error("Unable to switch to the specified directory");
-				return false;
-			}
-			String dirName = String.valueOf(ftpInfo.getMediaId());
-			boolean dirExists = client.changeWorkingDirectory(dirName);
-
-			if(dirExists)
-			{
-				log.info("Directory exists");
-				result = true;
-			}
-			else
-			{
+				log.debug("Media folder not found. Attempting to create folder...");
 				String parentDir = "/" + ftpInfo.getPrefix();
+				String dirName = String.valueOf(ftpInfo.getMediaId());
 				client.changeWorkingDirectory(parentDir);
 				log.info("Attempting to create folder: " + dirName + " under " + client.printWorkingDirectory());
 				result = client.makeDirectory(dirName);
-				log.info("Created Directory? " + result);
+				log.debug("Created Directory? " + result);
+				if(!result)
+				{
+					log.error("Unable to create media folder");
+					return false;
+				}
+				result = client.changeWorkingDirectory(dirName);
+				if(!result)
+				{
+					log.error("Unable to switch to the media folder: " + dirName + " under " + client.printWorkingDirectory());
+				}
 			}
 
-			client.disconnect();
-			return result;
+			String[] foldersToCreate = relativePath.split("/");
+
+			for(String folderToCreate : foldersToCreate)
+			{
+				log.debug("Current folder to create: " + folderToCreate);
+
+				result = client.makeDirectory(folderToCreate);
+
+				if(!result)
+				{
+					log.debug("Unable to create folder " + folderToCreate + " under " + client.printWorkingDirectory());
+				}
+				else
+				{
+					log.debug("Successfully created folder: " + folderToCreate + " under " + client.printWorkingDirectory());
+				}
+
+				result = client.changeWorkingDirectory(folderToCreate);
+				if(!result)
+				{
+					log.error("Unable to change to folder: " + folderToCreate + ". Current working directory is: " + client.printWorkingDirectory());
+					return false;
+				}
+
+				log.debug("Successfully changed to folder: " + folderToCreate + ". Current working directory is: " + client.printWorkingDirectory());
+
+			}
+
+			result = client.storeFile(fileName, new ByteArrayInputStream(contents.getBytes(StandardCharsets.UTF_8)));
+			if(!result)
+			{
+				log.error("Unable to copy subtitle file: " + fileName);
+				return false;
+			}
+
+			return true;
 
 		}
 		catch(IOException e)
 		{
-			log.error("Unable to create FTP folder.", e);
-			return false;
+			log.error("Error in copying subtitle files to FTP server", e);
 		}
+		finally
+		{
+			try
+			{
+				client.disconnect();
+			}
+			catch(Exception e)
+			{
+				log.error("Error in disconnecting FTP session", e);
+			}
+		}
+		return false;
 
 	}
 
